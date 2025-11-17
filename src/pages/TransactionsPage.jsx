@@ -1,132 +1,62 @@
 // src/pages/TransactionsPage.jsx
 import { useEffect, useState } from "react";
-import {
-  apiGetTransactions,
-  apiCreateTransaction,
-  apiUpdateTransaction,
-  apiDeleteTransaction,
-} from "../api/transactions";
+import { apiGetTransactions, apiDeleteTransaction } from "../api/transactions";
 import { apiGetCategories } from "../api/categories";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
+  
+  // Bộ lọc
   const [filters, setFilters] = useState({
     type: "all",
     categoryId: "",
-    from: "",
-    to: "",
     search: "",
+    // from: "", to: "" (Có thể thêm sau)
   });
-  const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({
-    date: "",
-    type: "expense",
-    categoryId: "",
-    note: "",
-    amount: "",
-  });
-  const [error, setError] = useState("");
 
+  const [loading, setLoading] = useState(true);
+
+  // Lấy danh mục để hiện trong dropdown filter
   useEffect(() => {
-    async function init() {
-      try {
-        const [cats] = await Promise.all([apiGetCategories()]);
-        setCategories(cats.categories || []);
-        await fetchTransactions();
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    apiGetCategories().then((res) => {
+      setCategories(Array.isArray(res) ? res : (res.categories || []));
+    });
   }, []);
 
-  async function fetchTransactions() {
-    setLoading(true);
-    try {
-      const params = {};
-      if (filters.type !== "all") params.type = filters.type;
-      if (filters.categoryId) params.categoryId = filters.categoryId;
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
-      if (filters.search) params.search = filters.search;
+  // Mỗi khi bộ lọc thay đổi thì tải lại transaction
+  useEffect(() => {
+    fetchTransactions();
+  }, [filters]); // Dependency là filters
 
-      const data = await apiGetTransactions(params);
-      setTransactions(data.transactions || []);
+  async function fetchTransactions() {
+    try {
+      setLoading(true);
+      // Gọi API với tham số lọc (Bỏ qua các param rỗng)
+      const cleanFilters = {};
+      if (filters.type !== "all") cleanFilters.type = filters.type;
+      if (filters.categoryId) cleanFilters.categoryId = filters.categoryId;
+      if (filters.search) cleanFilters.search = filters.search;
+
+      const data = await apiGetTransactions(cleanFilters);
+
+      // FIX QUAN TRỌNG: Kiểm tra xem data là Mảng hay Object
+      const list = Array.isArray(data) ? data : (data.transactions || []);
+      setTransactions(list);
     } catch (err) {
-      console.error(err);
+      console.error("Lỗi tải transaction:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  function openCreateModal() {
-    setEditing(null);
-    setForm({
-      date: new Date().toISOString().slice(0, 10),
-      type: "expense",
-      categoryId: "",
-      note: "",
-      amount: "",
-    });
-    setError("");
-    setModalOpen(true);
-  }
-
-  function openEditModal(tx) {
-    setEditing(tx);
-    setForm({
-      date: new Date(tx.date).toISOString().slice(0, 10),
-      type: tx.type,
-      categoryId: tx.category?._id || "",
-      note: tx.note || "",
-      amount: tx.amount.toString(),
-    });
-    setError("");
-    setModalOpen(true);
-  }
-
-  async function handleSave(e) {
-    e.preventDefault();
+  async function handleDelete(id) {
+    if (!window.confirm("Bạn có chắc muốn xóa giao dịch này?")) return;
     try {
-      setError("");
-
-      if (!form.date || !form.amount) {
-        setError("Ngày và số tiền là bắt buộc");
-        return;
-      }
-
-      const payload = {
-        type: form.type,
-        date: form.date,
-        note: form.note,
-        amount: Number(form.amount),
-        categoryId: form.categoryId || undefined,
-      };
-
-      if (editing) {
-        await apiUpdateTransaction(editing._id, payload);
-      } else {
-        await apiCreateTransaction(payload);
-      }
-
-      setModalOpen(false);
-      await fetchTransactions();
+      await apiDeleteTransaction(id);
+      await fetchTransactions(); // Tải lại sau khi xóa
     } catch (err) {
-      setError(err.message || "Không thể lưu giao dịch");
-    }
-  }
-
-  async function handleDelete(tx) {
-    if (!window.confirm("Bạn có chắc muốn xoá giao dịch này?")) return;
-    try {
-      await apiDeleteTransaction(tx._id);
-      await fetchTransactions();
-    } catch (err) {
-      alert(err.message || "Không thể xoá");
+      alert("Lỗi khi xóa: " + err.message);
     }
   }
 
@@ -134,345 +64,172 @@ export default function TransactionsPage() {
     <div>
       <h1 style={styles.pageTitle}>Transaction History</h1>
 
+      {/* --- BỘ LỌC (FILTER BAR) --- */}
+      <div style={styles.filterBar}>
+        {/* Lọc theo Type */}
+        <select
+          style={styles.select}
+          value={filters.type}
+          onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+        >
+          <option value="all">All Types</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+
+        {/* Lọc theo Category */}
+        <select
+          style={styles.select}
+          value={filters.categoryId}
+          onChange={(e) => setFilters({ ...filters, categoryId: e.target.value })}
+        >
+          <option value="">All Categories</option>
+          {categories.map((c) => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
+        </select>
+
+        {/* Tìm kiếm */}
+        <input
+          style={styles.input}
+          placeholder="Search note..."
+          value={filters.search}
+          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+        />
+
+        <button style={styles.primaryBtn} onClick={fetchTransactions}>
+          Refresh
+        </button>
+      </div>
+
+      {/* --- BẢNG DỮ LIỆU --- */}
       <div style={styles.card}>
-        <div style={styles.filterRow}>
-          <select
-            style={styles.select}
-            value={filters.type}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, type: e.target.value }))
-            }
-          >
-            <option value="all">All Types</option>
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-
-          <select
-            style={styles.select}
-            value={filters.categoryId}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, categoryId: e.target.value }))
-            }
-          >
-            <option value="">All Categories</option>
-            {categories.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-
-          <input
-            style={styles.input}
-            type="date"
-            value={filters.from}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, from: e.target.value }))
-            }
-          />
-
-          <input
-            style={styles.input}
-            type="date"
-            value={filters.to}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, to: e.target.value }))
-            }
-          />
-
-          <input
-            style={styles.input}
-            placeholder="Search..."
-            value={filters.search}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, search: e.target.value }))
-            }
-          />
-
-          <button style={styles.secondaryBtn} onClick={fetchTransactions}>
-            Apply
-          </button>
-
-          <button style={styles.primaryBtn} onClick={openCreateModal}>
-            Add New
-          </button>
-        </div>
-
         {loading ? (
-          <p>Đang tải...</p>
+          <p style={{ padding: 20 }}>Đang tải...</p>
+        ) : transactions.length === 0 ? (
+          <p style={{ padding: 20, color: "#64748B" }}>Không tìm thấy giao dịch nào.</p>
         ) : (
           <table style={styles.table}>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Category</th>
-                <th>Type</th>
-                <th>Note</th>
+                <th style={{ textAlign: "left" }}>Date</th>
+                <th style={{ textAlign: "left" }}>Category</th>
+                <th style={{ textAlign: "left" }}>Type</th>
+                <th style={{ textAlign: "left" }}>Note</th>
                 <th style={{ textAlign: "right" }}>Amount</th>
-                <th />
+                <th style={{ textAlign: "center" }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {transactions.map((t) => (
                 <tr key={t._id}>
+                  <td>{new Date(t.date).toLocaleDateString("vi-VN")}</td>
                   <td>
-                    {new Date(t.date).toLocaleDateString("en-CA")}
+                    {t.category ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>{t.category.icon || "🏷️"}</span>
+                        {t.category.name}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
                   </td>
-                  <td>{t.category?.name || "-"}</td>
+                  <td>
+                    <span
+                      style={{
+                        ...styles.tag,
+                        backgroundColor: t.type === "income" ? "#DCFCE7" : "#FEE2E2",
+                        color: t.type === "income" ? "#16A34A" : "#DC2626",
+                      }}
+                    >
+                      {t.type}
+                    </span>
+                  </td>
+                  <td>{t.note}</td>
                   <td
                     style={{
+                      textAlign: "right",
+                      fontWeight: 600,
                       color: t.type === "income" ? "#10B981" : "#EF4444",
                     }}
                   >
-                    {t.type}
+                    {t.type === "expense" ? "-" : "+"}${t.amount.toLocaleString("en-US")}
                   </td>
-                  <td>{t.note || "-"}</td>
-                  <td style={{ textAlign: "right" }}>
-                    {t.type === "expense" ? "-" : "+"}${" "}
-                    {t.amount.toLocaleString("en-US")}
-                  </td>
-                  <td style={{ textAlign: "right" }}>
+                  <td style={{ textAlign: "center" }}>
                     <button
-                      style={styles.iconBtn}
-                      onClick={() => openEditModal(t)}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      style={styles.iconBtn}
-                      onClick={() => handleDelete(t)}
+                      style={styles.deleteBtn}
+                      onClick={() => handleDelete(t._id)}
+                      title="Xóa"
                     >
                       🗑️
                     </button>
                   </td>
                 </tr>
               ))}
-
-              {transactions.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: 16 }}>
-                    Không có giao dịch nào
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         )}
       </div>
-
-      {modalOpen && (
-        <div style={styles.modalBackdrop}>
-          <div style={styles.modalCard}>
-            <h2 style={styles.modalTitle}>
-              {editing ? "Update Transaction" : "Add New Transaction"}
-            </h2>
-
-            <form onSubmit={handleSave}>
-              <div style={styles.formRow}>
-                <div style={styles.field}>
-                  <label style={styles.label}>Date</label>
-                  <input
-                    type="date"
-                    style={styles.input}
-                    value={form.date}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, date: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-
-                <div style={styles.field}>
-                  <label style={styles.label}>Type</label>
-                  <select
-                    style={styles.select}
-                    value={form.type}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, type: e.target.value }))
-                    }
-                  >
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={styles.formRow}>
-                <div style={styles.field}>
-                  <label style={styles.label}>Category</label>
-                  <select
-                    style={styles.select}
-                    value={form.categoryId}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        categoryId: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">-- None --</option>
-                    {categories.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={styles.field}>
-                  <label style={styles.label}>Amount</label>
-                  <input
-                    style={styles.input}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.amount}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, amount: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-              </div>
-
-              <div style={styles.field}>
-                <label style={styles.label}>Note</label>
-                <input
-                  style={styles.input}
-                  value={form.note}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, note: e.target.value }))
-                  }
-                />
-              </div>
-
-              {error && <div style={styles.errorText}>{error}</div>}
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button
-                  type="button"
-                  style={styles.secondaryBtn}
-                  onClick={() => setModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" style={styles.primaryBtn}>
-                  {editing ? "Update" : "Save"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 const styles = {
-  pageTitle: {
-    fontSize: 24,
-    marginBottom: 16,
-    color: "#1E293B",
+  pageTitle: { fontSize: 24, marginBottom: 24, color: "#1E293B" },
+  filterBar: {
+    display: "flex",
+    gap: 12,
+    marginBottom: 24,
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 16,
+    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+  },
+  select: {
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "1px solid #CBD5E1",
+    minWidth: 140,
+  },
+  input: {
+    flex: 1,
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "1px solid #CBD5E1",
+  },
+  primaryBtn: {
+    padding: "8px 16px",
+    borderRadius: 8,
+    border: "none",
+    backgroundColor: "#2563EB",
+    color: "#FFFFFF",
+    fontWeight: 600,
+    cursor: "pointer",
   },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
-    padding: 20,
-    boxShadow:
-      "0 10px 15px -3px rgb(15 23 42 / 0.12), 0 4px 6px -4px rgb(15 23 42 / 0.1)",
-  },
-  filterRow: {
-    display: "flex",
-    gap: 8,
-    marginBottom: 16,
-    flexWrap: "wrap",
-  },
-  select: {
-    padding: "8px 10px",
-    borderRadius: 999,
-    border: "1px solid #CBD5E1",
-    backgroundColor: "#F8FAFC",
-    fontSize: 13,
-  },
-  input: {
-    padding: "8px 10px",
-    borderRadius: 999,
-    border: "1px solid #CBD5E1",
-    backgroundColor: "#F8FAFC",
-    fontSize: 13,
-  },
-  primaryBtn: {
-    padding: "8px 14px",
-    borderRadius: 999,
-    border: "none",
-    backgroundColor: "#2563EB",
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  secondaryBtn: {
-    padding: "8px 14px",
-    borderRadius: 999,
-    border: "1px solid #CBD5E1",
-    backgroundColor: "#FFFFFF",
-    color: "#0F172A",
-    fontSize: 13,
-    cursor: "pointer",
+    overflow: "hidden", // Để bo góc bảng đẹp hơn
+    boxShadow: "0 10px 15px -3px rgb(15 23 42 / 0.12)",
   },
   table: {
     width: "100%",
     borderCollapse: "collapse",
-    fontSize: 13,
+    fontSize: 14,
   },
-  iconBtn: {
+  tag: {
+    padding: "4px 8px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 500,
+    textTransform: "capitalize",
+  },
+  deleteBtn: {
     border: "none",
     background: "transparent",
     cursor: "pointer",
     fontSize: 16,
-    marginLeft: 4,
-  },
-  modalBackdrop: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(15,23,42,0.35)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 40,
-  },
-  modalCard: {
-    width: 460,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 20,
-    boxShadow:
-      "0 10px 15px -3px rgb(15 23 42 / 0.2), 0 4px 6px -4px rgb(15 23 42 / 0.15)",
-  },
-  modalTitle: {
-    margin: 0,
-    marginBottom: 16,
-    fontSize: 18,
-    color: "#1E293B",
-  },
-  formRow: {
-    display: "flex",
-    gap: 12,
-  },
-  field: {
-    flex: 1,
-    marginBottom: 12,
-  },
-  label: {
-    display: "block",
-    fontSize: 13,
-    color: "#64748B",
-    marginBottom: 4,
-  },
-  errorText: {
-    fontSize: 13,
-    color: "#EF4444",
-    marginBottom: 8,
+    opacity: 0.6,
+    transition: "opacity 0.2s",
   },
 };
