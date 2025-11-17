@@ -25,7 +25,8 @@ export default function CategoriesPage() {
   async function fetchCategories() {
     try {
       const data = await apiGetCategories();
-      setCategories(data.categories || []);
+      // data chính là mảng danh sách, lấy trực tiếp luôn
+      setCategories(Array.isArray(data) ? data : []); 
     } catch (err) {
       console.error(err);
     }

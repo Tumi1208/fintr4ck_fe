@@ -21,12 +21,11 @@ async function handleJsonResponse(res) {
 }
 
 export async function apiGetTransactions(params = {}) {
+  // Thêm chống cache cho danh sách
   const res = await fetch(
-    `${API_BASE}/transactions${buildQuery(params)}`,
+    `${API_BASE}/transactions${buildQuery({ ...params, _t: Date.now() })}`,
     {
-      headers: {
-        ...getAuthHeaders(),
-      },
+      headers: { ...getAuthHeaders() },
     }
   );
   return handleJsonResponse(res);
@@ -59,16 +58,16 @@ export async function apiUpdateTransaction(id, payload) {
 export async function apiDeleteTransaction(id) {
   const res = await fetch(`${API_BASE}/transactions/${id}`, {
     method: "DELETE",
-    headers: {
-      ...getAuthHeaders(),
-    },
+    headers: { ...getAuthHeaders() },
   });
   return handleJsonResponse(res);
 }
 
 export async function apiGetSummary() {
-  const res = await fetch(`${API_BASE}/transactions/summary`, {
+  // QUAN TRỌNG: Thêm timestamp để luôn lấy dữ liệu mới nhất
+  const res = await fetch(`${API_BASE}/transactions/summary?_t=${Date.now()}`, {
     headers: {
+      "Cache-Control": "no-cache",
       ...getAuthHeaders(),
     },
   });

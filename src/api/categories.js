@@ -5,13 +5,20 @@ const { API_BASE, getAuthHeaders } = authApiHelpers;
 
 async function handleJsonResponse(res) {
   const data = await res.json().catch(() => ({}));
+  
+  // LOG DATA TRẢ VỀ ĐỂ KIỂM TRA
+  console.log(`[API Response] ${res.url}:`, data);
+
   if (!res.ok) throw new Error(data.message || "Đã có lỗi xảy ra");
   return data;
 }
 
 export async function apiGetCategories() {
-  const res = await fetch(`${API_BASE}/categories`, {
+  // Thêm timestamp để tránh browser cache
+  const res = await fetch(`${API_BASE}/categories?_t=${new Date().getTime()}`, {
     headers: {
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
       ...getAuthHeaders(),
     },
   });
