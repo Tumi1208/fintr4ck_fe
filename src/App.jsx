@@ -9,6 +9,7 @@ import CategoriesPage from "./pages/CategoriesPage";
 import SettingsPage from "./pages/SettingsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import ResourcesPage from "./pages/ResourcesPage";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
       {/* Các trang cần đăng nhập */}
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
+          <Route path="/resources" element={<ResourcesPage />} />
           <Route path="/" element={<DashboardPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />

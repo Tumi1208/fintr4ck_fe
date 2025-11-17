@@ -1,0 +1,166 @@
+// src/pages/ResourcesPage.jsx
+import React from "react";
+
+export default function ResourcesPage() {
+  const resources = [
+    {
+      id: 1,
+      type: "video",
+      title: "Quy tắc 50/30/20: Bí mật quản lý tài chính",
+      desc: "Phương pháp phân chia thu nhập kinh điển: 50% thiết yếu, 30% mong muốn, 20% tiết kiệm. Hướng dẫn thực hành chi tiết.",
+      // Link Video thật từ kênh Maggie Maggie
+      link: "https://www.youtube.com/watch?v=1v_B5TKH7qY", 
+      // Thumbnail thật lấy trực tiếp từ ID video Youtube
+      thumbnail: "https://img.youtube.com/vi/1v_B5TKH7qY/maxresdefault.jpg", 
+    },
+    {
+      id: 2,
+      type: "article",
+      title: "Sai lầm khiến người trẻ quản lý tài chính kém",
+      desc: "Phung phí chi tiêu, đầu tư ngoài khả năng là những rào cản lớn. Đọc ngay trên VnExpress để tránh mắc phải.",
+      // Link bài báo thật trên VnExpress
+      link: "https://vnexpress.net/sai-lam-khien-nguoi-tre-quan-ly-tai-chinh-kem-hieu-qua-4580620.html", 
+      // Ảnh minh họa thật (Unsplash) chủ đề 'money stress'
+      thumbnail: "https://images.unsplash.com/photo-1580519542036-c47de6196ba5?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: 3,
+      type: "video",
+      title: "Đầu tư với số vốn nhỏ (50 Triệu) cho người mới",
+      desc: "Podcast chia sẻ cách bắt đầu đầu tư an toàn và hiệu quả cho người mới bắt đầu từ kênh Trọng Tài Chính.",
+      // Link Video thật
+      link: "https://www.youtube.com/watch?v=FBkzd9A7Sk0",
+      // Thumbnail thật từ Youtube
+      thumbnail: "https://img.youtube.com/vi/FBkzd9A7Sk0/maxresdefault.jpg",
+    },
+    {
+      id: 4,
+      type: "tool",
+      title: "Công cụ tính lãi kép Online (VNSC)",
+      desc: "Nhập số vốn, lãi suất và thời gian để thấy sức mạnh của lãi kép. Công cụ uy tín từ VNSC by Finhay.",
+      // Link Tool thật
+      link: "https://www.vnsc.vn/cong-cu-tinh-lai-kep/",
+      // Ảnh minh họa thật (Unsplash) chủ đề 'growth chart'
+      thumbnail: "https://www.vnsc.vn/wp-content/uploads/2024/12/lai-kep-topcv.png",
+    }
+  ];
+
+  return (
+    <div style={{ padding: "24px 40px" }}>
+      <h1 style={styles.pageTitle}>Góc Kiến Thức Tài Chính 📚</h1>
+      <p style={styles.subTitle}>Tổng hợp các nguồn tài liệu uy tín giúp bạn nâng cao tư duy tài chính.</p>
+      
+      <div style={styles.grid}>
+        {resources.map((item) => (
+          <div key={item.id} style={styles.card}>
+            <a href={item.link} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div style={styles.thumbWrapper}>
+                  <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
+                  <span style={styles.tag}>
+                    {item.type === 'video' ? 'Video 📺' : item.type === 'article' ? 'Báo VnExpress 📰' : 'Công cụ 🛠️'}
+                  </span>
+                  {item.type === 'video' && (
+                    <div style={styles.playIcon}>▶</div>
+                  )}
+              </div>
+              <div style={styles.content}>
+                  <h3 style={styles.cardTitle}>{item.title}</h3>
+                  <p style={styles.cardDesc}>{item.desc}</p>
+                  <span style={styles.linkText}>
+                      Xem chi tiết &rarr;
+                  </span>
+              </div>
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  pageTitle: { fontSize: 28, color: "#1E293B", marginBottom: 8, fontWeight: 800 },
+  subTitle: { fontSize: 15, color: "#64748B", marginBottom: 32 },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+    gap: 24,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
+    overflow: "hidden",
+    border: "1px solid #F1F5F9",
+    transition: "transform 0.2s, box-shadow 0.2s",
+    cursor: "pointer",
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  thumbWrapper: {
+    height: 180,
+    position: "relative",
+    backgroundColor: "#E2E8F0",
+  },
+  thumb: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+  },
+  tag: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(15, 23, 42, 0.85)",
+    backdropFilter: "blur(4px)",
+    padding: "4px 12px",
+    borderRadius: 20,
+    fontSize: 11,
+    color: "#FFFFFF",
+    fontWeight: 600,
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+  },
+  playIcon: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: 48,
+    height: 48,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 20,
+    color: "#DC2626", // Màu đỏ Youtube
+    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+  },
+  content: {
+    padding: 20,
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    margin: "0 0 8px 0",
+    color: "#0F172A",
+    fontWeight: 700,
+    lineHeight: 1.4,
+  },
+  cardDesc: {
+    fontSize: 13,
+    color: "#64748B",
+    marginBottom: 16,
+    flex: 1,
+    lineHeight: 1.5,
+  },
+  linkText: {
+    display: "inline-block",
+    color: "#2563EB",
+    fontWeight: 600,
+    fontSize: 14,
+  }
+};

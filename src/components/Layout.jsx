@@ -1,10 +1,12 @@
 // src/components/Layout.jsx
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
+// --- THÊM MỤC RESOURCES VÀO DANH SÁCH NÀY ---
 const navItems = [
   { to: "/", label: "Dashboard", icon: "📊", exact: true },
   { to: "/transactions", label: "Transactions", icon: "📜" },
   { to: "/categories", label: "Categories", icon: "🧩" },
+  { to: "/resources", label: "Resources", icon: "📚" }, // <--- DÒNG MỚI THÊM
   { to: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
@@ -27,6 +29,7 @@ export default function Layout() {
           </div>
         </div>
 
+        {/* Phần này sẽ tự động lặp qua mảng navItems để tạo menu */}
         <nav style={{ marginTop: 32 }}>
           {navItems.map((item) => (
             <NavLink
