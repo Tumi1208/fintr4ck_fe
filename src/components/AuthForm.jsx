@@ -1,76 +1,87 @@
 // src/components/AuthForm.jsx
-// Component dùng chung cho Login / Register, nhận props: type, onSubmit, submitting
-
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
-export default function AuthForm({ type, onSubmit, submitting }) {
+export default function AuthForm({ type, onSubmit, submitting, error }) {
   const isLogin = type === "login";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Khi submit form
   function handleSubmit(e) {
     e.preventDefault();
-    console.log("handleSubmit() fired"); // debug
+
+    if (!email || !password || (!isLogin && !name)) return;
+
     if (isLogin) onSubmit({ email, password });
     else onSubmit({ name, email, password });
   }
 
-  // Khi click nút
-  function handleClick() {
-    console.log("Button onClick fired"); // debug
-  }
-
   return (
-    <div style={styles.wrap}>
-      <div style={styles.card}>
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ margin: 0, textAlign: "center" }}>
-            {isLogin ? "Welcome Back!" : "Join the Community!"}
-          </h2>
-          <p style={{ color: "#6b7a90", textAlign: "center", marginTop: 8 }}>
-            {isLogin
-              ? "Sign in to manage your finances"
-              : "Start managing your money smarter"}
-          </p>
-        </div>
+    <div style={styles.page}>
+      <header style={styles.logoBar}>
+        <div style={styles.logoCircle}>F</div>
+        <span style={styles.logoText}>Fintr4ck</span>
+      </header>
 
-        {/* Form chính */}
-        <form onSubmit={handleSubmit}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>
+          {isLogin ? "Welcome Back!" : "Join the Community!"}
+        </h1>
+        <p style={styles.subtitle}>
+          {isLogin
+            ? "Sign in to manage your finances"
+            : "Start managing your money smarter"}
+        </p>
+
+        <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
           {!isLogin && (
-            <input
-              placeholder="Full Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={styles.input}
-              required
-            />
+            <div style={styles.field}>
+              <label style={styles.label}>Full Name</label>
+              <input
+                style={styles.input}
+                placeholder="Full Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
           )}
 
-          <input
-            placeholder="Email Address"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
-            required
-          />
+          <div style={styles.field}>
+            <label style={styles.label}>Email Address</label>
+            <input
+              style={styles.input}
+              type="email"
+              placeholder="Email Address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-          <input
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-            required
-          />
+          <div style={styles.field}>
+            <label style={styles.label}>Password</label>
+            <input
+              style={styles.input}
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error && <div style={styles.error}>{error}</div>}
 
           <button
             type="submit"
             disabled={submitting}
-            style={styles.button}
-            onClick={handleClick}
+            style={{
+              ...styles.button,
+              opacity: submitting ? 0.7 : 1,
+              cursor: submitting ? "default" : "pointer",
+            }}
           >
             {submitting
               ? "Please wait..."
@@ -79,44 +90,142 @@ export default function AuthForm({ type, onSubmit, submitting }) {
               : "SIGN UP"}
           </button>
         </form>
+
+        {isLogin ? (
+          <div style={styles.linksBox}>
+            <div style={{ marginBottom: 8 }}>
+              <Link to="/forgot-password" style={styles.linkSub}>
+                Forgot Password?
+              </Link>
+            </div>
+            <span style={styles.helperText}>
+              Don't have your account?{" "}
+              <Link to="/register" style={styles.linkMain}>
+                Sign Up
+              </Link>
+            </span>
+          </div>
+        ) : (
+          <div style={styles.linksBox}>
+            <span style={styles.helperText}>
+              Already have account?{" "}
+              <Link to="/login" style={styles.linkMain}>
+                Login
+              </Link>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 const styles = {
-  wrap: {
+  page: {
     minHeight: "100vh",
+    backgroundColor: "#F0F8FF",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    paddingTop: 32,
+  },
+  logoBar: {
+    width: "100%",
+    maxWidth: 960,
+    display: "flex",
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  logoCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: "999px",
+    backgroundColor: "#2563EB",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "#eef5ff",
+    color: "#F0F8FF",
+    fontWeight: 700,
+    marginRight: 8,
+  },
+  logoText: {
+    fontWeight: 700,
+    color: "#0F172A",
+    fontSize: 18,
   },
   card: {
-    width: 420,
-    padding: 28,
-    background: "#fff",
-    borderRadius: 12,
-    boxShadow: "0 10px 40px rgba(0,0,0,.08)",
+    width: "100%",
+    maxWidth: 480,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    boxShadow:
+      "0 10px 15px -3px rgb(15 23 42 / 0.15), 0 4px 6px -4px rgb(15 23 42 / 0.1)",
+    padding: 32,
+  },
+  title: {
+    margin: 0,
+    fontSize: 24,
+    color: "#1E293B",
+    textAlign: "center",
+  },
+  subtitle: {
+    marginTop: 8,
+    marginBottom: 0,
+    textAlign: "center",
+    color: "#64748B",
+    fontSize: 14,
+  },
+  field: {
+    marginBottom: 16,
+  },
+  label: {
+    display: "block",
+    fontSize: 13,
+    marginBottom: 6,
+    color: "#64748B",
   },
   input: {
     width: "100%",
-    height: 42,
-    padding: "0 12px",
-    margin: "8px 0",
-    border: "1px solid #dfe5f0",
-    borderRadius: 8,
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid #CBD5E1",
+    fontSize: 14,
     outline: "none",
+    backgroundColor: "#F8FAFC",
   },
   button: {
     width: "100%",
-    height: 44,
     marginTop: 8,
-    background: "#1e88e5",
-    color: "#fff",
+    padding: "10px 16px",
+    borderRadius: 999,
     border: "none",
-    borderRadius: 8,
-    fontWeight: 700,
-    cursor: "pointer",
+    backgroundColor: "#2563EB",
+    color: "#FFFFFF",
+    fontWeight: 600,
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  linksBox: {
+    marginTop: 16,
+    textAlign: "center",
+    fontSize: 13,
+  },
+  helperText: {
+    color: "#64748B",
+  },
+  linkMain: {
+    color: "#2563EB",
+    fontWeight: 600,
+    textDecoration: "none",
+  },
+  linkSub: {
+    color: "#2563EB",
+    textDecoration: "none",
+  },
+  error: {
+    marginTop: 4,
+    marginBottom: 8,
+    fontSize: 13,
+    color: "#EF4444",
   },
 };
