@@ -1,34 +1,57 @@
-// Gọi API auth qua axios, tự động gắn token nếu có
-
-// Debug lỗi không chuyển trang
-import axios from "axios";
-
+// src/api/auth.js
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api/v1";
-console.log("API_BASE =", API_BASE); // debug: xem FE đang gọi về đâu
+console.log("API_BASE =", API_BASE);
 
-const http = axios.create({ baseURL: API_BASE });
-
-http.interceptors.request.use((config) => {
+function getAuthHeaders() {
   const token = localStorage.getItem("fintr4ck_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+      }
+    : {};
+}
+
+async function handleJsonResponse(res) {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || "Đã có lỗi xảy ra");
+  }
+  return data;
+}
 
 export async function apiRegister({ name, email, password }) {
-  console.log("apiRegister() được gọi với", { name, email }); // debug
-  const res = await http.post("/auth/register", { name, email, password });
-  return res.data;
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name, email, password }),
+  });
+
+  return handleJsonResponse(res);
 }
 
 export async function apiLogin({ email, password }) {
-  console.log("apiLogin() được gọi với", { email }); // debug
-  const res = await http.post("/auth/login", { email, password });
-  return res.data;
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  return handleJsonResponse(res);
 }
 
-export async function apiMe() {
-  const res = await http.get("/auth/me");
-  return res.data.user;
-}
-console.log("API_BASE =", import.meta.env.VITE_API_BASE || "http://localhost:4000/api/v1");
+export async function apiGetMe() {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
 
+  return handleJsonResponse(res);
+}
+
+// helper dùng chung
+export const authApiHelpers = { getAuthHeaders, API_BASE };

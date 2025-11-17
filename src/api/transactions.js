@@ -1,62 +1,76 @@
 // src/api/transactions.js
-// Các hàm gọi API giao dịch để FE dùng
+import { authApiHelpers } from "./auth";
 
-const API_BASE = import.meta.env.VITE_API_BASE;
+const { API_BASE, getAuthHeaders } = authApiHelpers;
 
-// Hàm nhỏ để gắn header Authorization nếu có token
-function getAuthHeader() {
-  const token = localStorage.getItem("token");
-  if (!token) return {};
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
-
-export async function fetchTransactions() {
-  const res = await fetch(`${API_BASE}/transactions`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeader(),
-    },
+function buildQuery(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "" && value !== null) {
+      query.append(key, value);
+    }
   });
-
-  if (!res.ok) {
-    throw new Error("Không lấy được danh sách giao dịch");
-  }
-
-  return res.json();
+  const s = query.toString();
+  return s ? `?${s}` : "";
 }
 
-export async function createTransaction(payload) {
+async function handleJsonResponse(res) {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || "Đã có lỗi xảy ra");
+  return data;
+}
+
+export async function apiGetTransactions(params = {}) {
+  const res = await fetch(
+    `${API_BASE}/transactions${buildQuery(params)}`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    }
+  );
+  return handleJsonResponse(res);
+}
+
+export async function apiCreateTransaction(payload) {
   const res = await fetch(`${API_BASE}/transactions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeader(),
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(payload),
   });
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || "Không thêm được giao dịch");
-  }
-
-  return res.json();
+  return handleJsonResponse(res);
 }
 
-export async function deleteTransaction(id) {
+export async function apiUpdateTransaction(id, payload) {
+  const res = await fetch(`${API_BASE}/transactions/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+  return handleJsonResponse(res);
+}
+
+export async function apiDeleteTransaction(id) {
   const res = await fetch(`${API_BASE}/transactions/${id}`, {
     method: "DELETE",
     headers: {
-      ...getAuthHeader(),
+      ...getAuthHeaders(),
     },
   });
+  return handleJsonResponse(res);
+}
 
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || "Không xóa được giao dịch");
-  }
-
-  return res.json();
+export async function apiGetSummary() {
+  const res = await fetch(`${API_BASE}/transactions/summary`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  return handleJsonResponse(res);
 }
