@@ -6,41 +6,46 @@ import { apiGetCategories } from "../api/categories";
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // State riêng cho ô tìm kiếm để xử lý độ trễ (Debounce)
+  const [searchTerm, setSearchTerm] = useState(""); 
   
-  // Bộ lọc
   const [filters, setFilters] = useState({
     type: "all",
     categoryId: "",
-    search: "",
-    // from: "", to: "" (Có thể thêm sau)
   });
 
-  const [loading, setLoading] = useState(true);
-
-  // Lấy danh mục để hiện trong dropdown filter
+  // 1. Lấy danh mục (Chạy 1 lần đầu)
   useEffect(() => {
     apiGetCategories().then((res) => {
       setCategories(Array.isArray(res) ? res : (res.categories || []));
     });
   }, []);
 
-  // Mỗi khi bộ lọc thay đổi thì tải lại transaction
+  // 2. Logic tìm kiếm thông minh (Debounce)
+  // Khi người dùng gõ, chờ 500ms rồi mới gọi API fetchTransactions
   useEffect(() => {
-    fetchTransactions();
-  }, [filters]); // Dependency là filters
+    const timer = setTimeout(() => {
+      fetchTransactions();
+    }, 500); // Độ trễ 0.5s giúp không gọi API liên tục
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, filters]); // Chạy lại khi gõ phím hoặc đổi filter dropdown
 
   async function fetchTransactions() {
     try {
       setLoading(true);
-      // Gọi API với tham số lọc (Bỏ qua các param rỗng)
       const cleanFilters = {};
+      
       if (filters.type !== "all") cleanFilters.type = filters.type;
       if (filters.categoryId) cleanFilters.categoryId = filters.categoryId;
-      if (filters.search) cleanFilters.search = filters.search;
+      
+      // Gửi searchTerm xuống backend để nó tự lo liệu (tìm trong note, amount, date...)
+      if (searchTerm) cleanFilters.search = searchTerm;
 
       const data = await apiGetTransactions(cleanFilters);
-
-      // FIX QUAN TRỌNG: Kiểm tra xem data là Mảng hay Object
+      // Đảm bảo luôn nhận về mảng
       const list = Array.isArray(data) ? data : (data.transactions || []);
       setTransactions(list);
     } catch (err) {
@@ -54,7 +59,7 @@ export default function TransactionsPage() {
     if (!window.confirm("Bạn có chắc muốn xóa giao dịch này?")) return;
     try {
       await apiDeleteTransaction(id);
-      await fetchTransactions(); // Tải lại sau khi xóa
+      fetchTransactions(); // Tải lại sau khi xóa
     } catch (err) {
       alert("Lỗi khi xóa: " + err.message);
     }
@@ -64,9 +69,8 @@ export default function TransactionsPage() {
     <div>
       <h1 style={styles.pageTitle}>Transaction History</h1>
 
-      {/* --- BỘ LỌC (FILTER BAR) --- */}
       <div style={styles.filterBar}>
-        {/* Lọc theo Type */}
+        {/* Dropdown Type */}
         <select
           style={styles.select}
           value={filters.type}
@@ -77,7 +81,7 @@ export default function TransactionsPage() {
           <option value="expense">Expense</option>
         </select>
 
-        {/* Lọc theo Category */}
+        {/* Dropdown Category */}
         <select
           style={styles.select}
           value={filters.categoryId}
@@ -89,49 +93,67 @@ export default function TransactionsPage() {
           ))}
         </select>
 
-        {/* Tìm kiếm */}
-        <input
-          style={styles.input}
-          placeholder="Search note..."
-          value={filters.search}
-          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-        />
+        {/* Ô TÌM KIẾM PRO */}
+        <div style={styles.searchWrapper}>
+          <span style={styles.searchIcon}>🔍</span>
+          <input
+            style={styles.searchInput}
+            placeholder="Tìm ngày (17/11), danh mục (xăng), ghi chú..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {/* Nút X để xóa nhanh */}
+          {searchTerm && (
+            <button 
+              style={styles.clearBtn} 
+              onClick={() => setSearchTerm("")}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
-        <button style={styles.primaryBtn} onClick={fetchTransactions}>
-          Refresh
+        {/* Nút Refresh */}
+        <button style={styles.refreshBtn} onClick={fetchTransactions} title="Reload data">
+          🔄
         </button>
       </div>
 
-      {/* --- BẢNG DỮ LIỆU --- */}
       <div style={styles.card}>
         {loading ? (
-          <p style={{ padding: 20 }}>Đang tải...</p>
+          <p style={{ padding: 20, textAlign: "center", color: "#64748B" }}>Searching...</p>
         ) : transactions.length === 0 ? (
-          <p style={{ padding: 20, color: "#64748B" }}>Không tìm thấy giao dịch nào.</p>
+          <div style={{ padding: 40, textAlign: "center", color: "#94A3B8" }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>📭</div>
+            Không tìm thấy giao dịch nào phù hợp.
+          </div>
         ) : (
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left" }}>Date</th>
+                <th style={{ textAlign: "left", paddingLeft: 24 }}>Date</th>
                 <th style={{ textAlign: "left" }}>Category</th>
                 <th style={{ textAlign: "left" }}>Type</th>
                 <th style={{ textAlign: "left" }}>Note</th>
                 <th style={{ textAlign: "right" }}>Amount</th>
-                <th style={{ textAlign: "center" }}>Action</th>
+                <th style={{ textAlign: "center", paddingRight: 24 }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {transactions.map((t) => (
-                <tr key={t._id}>
-                  <td>{new Date(t.date).toLocaleDateString("vi-VN")}</td>
+                <tr key={t._id} style={styles.tr}>
+                  <td style={{ paddingLeft: 24 }}>
+                    {new Date(t.date).toLocaleDateString("vi-VN")}
+                  </td>
                   <td>
                     {t.category ? (
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={styles.catBadge}>
                         <span>{t.category.icon || "🏷️"}</span>
                         {t.category.name}
                       </span>
                     ) : (
-                      "-"
+                      <span style={{ color: "#94A3B8" }}>-</span>
                     )}
                   </td>
                   <td>
@@ -142,10 +164,10 @@ export default function TransactionsPage() {
                         color: t.type === "income" ? "#16A34A" : "#DC2626",
                       }}
                     >
-                      {t.type}
+                      {t.type === 'income' ? 'Income' : 'Expense'}
                     </span>
                   </td>
-                  <td>{t.note}</td>
+                  <td style={{ color: "#334155" }}>{t.note}</td>
                   <td
                     style={{
                       textAlign: "right",
@@ -155,11 +177,11 @@ export default function TransactionsPage() {
                   >
                     {t.type === "expense" ? "-" : "+"}${t.amount.toLocaleString("en-US")}
                   </td>
-                  <td style={{ textAlign: "center" }}>
+                  <td style={{ textAlign: "center", paddingRight: 24 }}>
                     <button
                       style={styles.deleteBtn}
                       onClick={() => handleDelete(t._id)}
-                      title="Xóa"
+                      title="Delete"
                     >
                       🗑️
                     </button>
@@ -175,7 +197,7 @@ export default function TransactionsPage() {
 }
 
 const styles = {
-  pageTitle: { fontSize: 24, marginBottom: 24, color: "#1E293B" },
+  pageTitle: { fontSize: 24, marginBottom: 24, color: "#1E293B", fontWeight: 700 },
   filterBar: {
     display: "flex",
     gap: 12,
@@ -183,53 +205,109 @@ const styles = {
     backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: 16,
-    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+    boxShadow: "0 4px 12px -2px rgb(0 0 0 / 0.05)",
+    alignItems: "center",
+    flexWrap: "wrap",
   },
   select: {
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid #CBD5E1",
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid #E2E8F0",
     minWidth: 140,
-  },
-  input: {
-    flex: 1,
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid #CBD5E1",
-  },
-  primaryBtn: {
-    padding: "8px 16px",
-    borderRadius: 8,
-    border: "none",
-    backgroundColor: "#2563EB",
-    color: "#FFFFFF",
-    fontWeight: 600,
+    outline: "none",
+    backgroundColor: "#F8FAFC",
+    fontSize: 14,
     cursor: "pointer",
+    color: "#334155",
+  },
+  searchWrapper: {
+    flex: 2, // Ô tìm kiếm chiếm nhiều chỗ hơn
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    minWidth: 200,
+  },
+  searchInput: {
+    width: "100%",
+    padding: "10px 36px 10px 36px", // Chừa chỗ cho icon trái phải
+    borderRadius: 10,
+    border: "1px solid #E2E8F0",
+    outline: "none",
+    backgroundColor: "#F8FAFC",
+    fontSize: 14,
+    transition: "all 0.2s",
+    color: "#334155",
+  },
+  searchIcon: {
+    position: "absolute",
+    left: 12,
+    opacity: 0.5,
+    fontSize: 14,
+    pointerEvents: "none",
+  },
+  clearBtn: {
+    position: "absolute",
+    right: 12,
+    border: "none",
+    background: "transparent",
+    color: "#94A3B8",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: "bold",
+    padding: 4,
+  },
+  refreshBtn: {
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid #E2E8F0",
+    backgroundColor: "#FFFFFF",
+    cursor: "pointer",
+    fontSize: 16,
+    color: "#64748B",
+    transition: "all 0.2s",
   },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
-    overflow: "hidden", // Để bo góc bảng đẹp hơn
-    boxShadow: "0 10px 15px -3px rgb(15 23 42 / 0.12)",
+    overflow: "hidden",
+    boxShadow: "0 10px 15px -3px rgb(15 23 42 / 0.05)",
+    border: "1px solid #F1F5F9",
   },
   table: {
     width: "100%",
     borderCollapse: "collapse",
     fontSize: 14,
   },
+  tr: {
+    borderBottom: "1px solid #F1F5F9",
+    height: 60,
+    transition: "background 0.1s",
+  },
   tag: {
-    padding: "4px 8px",
+    padding: "4px 10px",
     borderRadius: 999,
     fontSize: 12,
-    fontWeight: 500,
+    fontWeight: 600,
     textTransform: "capitalize",
+  },
+  catBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "4px 10px",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    border: "1px solid #F1F5F9",
+    fontSize: 13,
+    color: "#475569",
+    fontWeight: 500,
   },
   deleteBtn: {
     border: "none",
     background: "transparent",
     cursor: "pointer",
-    fontSize: 16,
-    opacity: 0.6,
+    fontSize: 18,
+    opacity: 0.4,
     transition: "opacity 0.2s",
   },
 };
