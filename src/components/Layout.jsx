@@ -6,6 +6,8 @@ const navItems = [
   { to: "/app", label: "Dashboard", icon: "📊", exact: true },
   { to: "/app/transactions", label: "Transactions", icon: "📜" },
   { to: "/app/categories", label: "Categories", icon: "🧩" },
+  { to: "/app/challenges", label: "Challenges", icon: "🏁" },
+  { to: "/app/my-challenges", label: "My Challenges", icon: "✅" },
   { to: "/app/templates", label: "Templates", icon: "📋" },
   { to: "/app/resources", label: "Resources", icon: "📚" },
   { to: "/app/settings", label: "Cài đặt", icon: "⚙️" },

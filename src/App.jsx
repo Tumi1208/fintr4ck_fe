@@ -12,6 +12,8 @@ import Layout from "./components/Layout";
 import ResourcesPage from "./pages/ResourcesPage";
 import TemplatesPage from "./pages/TemplatesPage";
 import HomePage from "./pages/HomePage";
+import ChallengeListPage from "./pages/ChallengeListPage";
+import MyChallengesPage from "./pages/MyChallengesPage";
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<Layout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="challenges" element={<ChallengeListPage />} />
+          <Route path="my-challenges" element={<MyChallengesPage />} />
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="resources" element={<ResourcesPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
