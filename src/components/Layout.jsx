@@ -1,19 +1,16 @@
 // src/components/Layout.jsx
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useLanguage } from "../i18n/LanguageContext";
-import LanguageSwitcher from "./LanguageSwitcher";
 
-const navItems = (t) => [
-  { to: "/app", label: t("nav.dashboard"), icon: "📊", exact: true },
-  { to: "/app/transactions", label: t("nav.transactions"), icon: "📜" },
-  { to: "/app/categories", label: t("nav.categories"), icon: "🧩" },
-  { to: "/app/templates", label: t("nav.templates"), icon: "📋" },
-  { to: "/app/resources", label: t("nav.resources"), icon: "📚" },
-  { to: "/app/settings", label: t("nav.settings"), icon: "⚙️" },
+const navItems = [
+  { to: "/app", label: "Dashboard", icon: "📊", exact: true },
+  { to: "/app/transactions", label: "Transactions", icon: "📜" },
+  { to: "/app/categories", label: "Categories", icon: "🧩" },
+  { to: "/app/templates", label: "Templates", icon: "📋" },
+  { to: "/app/resources", label: "Resources", icon: "📚" },
+  { to: "/app/settings", label: "Cài đặt", icon: "⚙️" },
 ];
 
 export default function Layout() {
-  const { t } = useLanguage();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -28,13 +25,13 @@ export default function Layout() {
         <div style={styles.sideLogo}>
           <div style={styles.logoCircle}>F</div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={styles.logoText}>{t("common.brand")}</span>
-            <span style={styles.logoSub}>{t("common.tagline")}</span>
+            <span style={styles.logoText}>Fintr4ck</span>
+            <span style={styles.logoSub}>Personal Finance</span>
           </div>
         </div>
 
         <nav style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 8 }}>
-          {navItems(t).map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -54,13 +51,9 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div style={{ marginTop: 12 }}>
-          <LanguageSwitcher />
-        </div>
-
         <div style={{ marginTop: "auto" }}>
           <button style={styles.logoutBtn} onClick={handleLogout}>
-            {t("common.logout")}
+            Đăng xuất
           </button>
         </div>
       </aside>

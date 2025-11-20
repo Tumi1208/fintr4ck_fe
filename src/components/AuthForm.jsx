@@ -3,11 +3,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "./ui/Button";
 import InputField from "./ui/InputField";
-import { useLanguage } from "../i18n/LanguageContext";
-import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function AuthForm({ type, onSubmit, submitting, error }) {
-  const { t } = useLanguage();
   const isLogin = type === "login";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -24,30 +21,27 @@ export default function AuthForm({ type, onSubmit, submitting, error }) {
     <div style={styles.page}>
       <div style={styles.glow} />
       <div style={styles.card}>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-          <LanguageSwitcher compact />
-        </div>
         <div style={styles.logoWrap}>
           <div style={styles.logoMark}>F</div>
           <div>
-            <div style={styles.logoText}>{t("common.brand")}</div>
-            <div style={styles.logoHint}>{t("common.tagline")}</div>
+            <div style={styles.logoText}>Fintr4ck</div>
+            <div style={styles.logoHint}>Personal finance, made confident</div>
           </div>
         </div>
 
         <h1 style={styles.title}>
-          {isLogin ? t("auth.welcomeBack") : t("auth.join")}
+          {isLogin ? "Chào mừng quay lại" : "Tạo tài khoản mới"}
         </h1>
         <p style={styles.subtitle}>
           {isLogin
-            ? t("auth.subtitleLogin")
-            : t("auth.subtitleRegister")}
+            ? "Quản lý tiền bạc rõ ràng, nhanh chóng."
+            : "Đăng ký miễn phí để bắt đầu kiểm soát tài chính."}
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {!isLogin && (
             <InputField
-              label={t("auth.name")}
+              label="Họ và tên"
               placeholder="Nguyễn Văn A"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -56,7 +50,7 @@ export default function AuthForm({ type, onSubmit, submitting, error }) {
           )}
 
           <InputField
-            label={t("auth.email")}
+            label="Email"
             type="email"
             placeholder="you@email.com"
             value={email}
@@ -65,7 +59,7 @@ export default function AuthForm({ type, onSubmit, submitting, error }) {
           />
 
           <InputField
-            label={t("auth.password")}
+            label="Mật khẩu"
             type="password"
             placeholder="••••••••"
             value={password}
@@ -82,28 +76,28 @@ export default function AuthForm({ type, onSubmit, submitting, error }) {
             disabled={submitting}
             style={{ opacity: submitting ? 0.7 : 1 }}
           >
-            {submitting ? "Đang xử lý..." : isLogin ? t("auth.loginBtn") : t("auth.registerBtn")}
+            {submitting ? "Đang xử lý..." : isLogin ? "Đăng nhập" : "Đăng ký ngay"}
           </Button>
         </form>
 
         {isLogin ? (
           <div style={styles.linksBox}>
             <Link to="/forgot-password" style={styles.linkMain}>
-              {t("auth.forgot")}
+              Quên mật khẩu?
             </Link>
             <div style={styles.helperText}>
-              {t("auth.noAccount")}{" "}
+              Chưa có tài khoản?{" "}
               <Link to="/register" style={styles.linkAccent}>
-                {t("common.register")}
+                Đăng ký
               </Link>
             </div>
           </div>
         ) : (
           <div style={styles.linksBox}>
             <div style={styles.helperText}>
-              {t("auth.haveAccount")}{" "}
+              Đã có tài khoản?{" "}
               <Link to="/login" style={styles.linkAccent}>
-                {t("common.login")}
+                Đăng nhập
               </Link>
             </div>
           </div>

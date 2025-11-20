@@ -11,13 +11,10 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
 import Badge from "../components/ui/Badge";
-import { useLanguage } from "../i18n/LanguageContext";
-import LanguageSwitcher from "../components/LanguageSwitcher";
 
 const PREFS_KEY = "fintr4ck_prefs";
 
 export default function SettingsPage() {
-  const { t } = useLanguage();
   const [user, setUser] = useState(null);
 
   // Profile
@@ -157,20 +154,15 @@ export default function SettingsPage() {
     <div>
       <div style={styles.head}>
         <div>
-          <p style={styles.kicker}>{t("settings.headerKicker")}</p>
-          <h1 style={styles.pageTitle}>{t("settings.headerTitle")}</h1>
-          <p style={styles.lead}>{t("settings.headerLead")}</p>
+          <p style={styles.kicker}>Hồ sơ</p>
+          <h1 style={styles.pageTitle}>Cài đặt</h1>
+          <p style={styles.lead}>Quản lý thông tin cá nhân, bảo mật và tuỳ chọn hiển thị.</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <LanguageSwitcher compact />
-          {user && <Badge tone="info">ID: {user._id?.slice(-6) || "user"}</Badge>}
-        </div>
+        {user && <Badge tone="info">ID: {user._id?.slice(-6) || "user"}</Badge>}
       </div>
 
       <Card title="Profile Information" style={styles.card}>
-        <p style={styles.description}>
-          {t("settings.profileDesc")}
-        </p>
+        <p style={styles.description}>Cập nhật tên hiển thị. Email và mã tài khoản chỉ xem.</p>
         <div style={styles.profileSummary}>
           <div style={styles.avatar}>{(user?.name || "F")[0]?.toUpperCase()}</div>
           <div>
@@ -180,7 +172,7 @@ export default function SettingsPage() {
               <span>Account ID: {user?._id || "..."}</span>
               <span>{user?.createdAt ? `Created: ${new Date(user.createdAt).toLocaleDateString()}` : "Created: --"}</span>
               <span>Role: {user?.role || "user"}</span>
-              <span>{t("common.tagline")}</span>
+              <span>Phiên: đang đăng nhập</span>
             </div>
           </div>
         </div>
@@ -204,7 +196,7 @@ export default function SettingsPage() {
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Button onClick={handleProfileSave} disabled={savingProfile}>
-            {savingProfile ? "..." : t("common.save")}
+            {savingProfile ? "..." : "Lưu thay đổi"}
           </Button>
           <Button
             variant="ghost"
@@ -213,12 +205,12 @@ export default function SettingsPage() {
               navigate("/login");
             }}
           >
-            {t("common.logout")}
+            Đăng xuất khỏi thiết bị này
           </Button>
         </div>
       </Card>
 
-      <Card title={t("settings.security")} style={styles.card}>
+      <Card title="Bảo mật" style={styles.card}>
         <p style={styles.description}>Đổi mật khẩu để bảo vệ tài khoản của bạn.</p>
 
         {!showPwdForm && (

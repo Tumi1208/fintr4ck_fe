@@ -1,12 +1,34 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useLanguage } from "../i18n/LanguageContext";
-import LanguageSwitcher from "../components/LanguageSwitcher";
+
+const features = [
+  {
+    title: "Theo dõi chi tiêu tức thời",
+    desc: "Ghi nhận giao dịch trong vài giây, phân loại tự động và xem xu hướng ngay lập tức.",
+    accent: "Chi tiêu",
+    icon: "⚡",
+  },
+  {
+    title: "Mục tiêu rõ ràng",
+    desc: "Thiết lập budget, nhắc tiến độ và cảnh báo khi sắp vượt ngưỡng.",
+    accent: "Mục tiêu",
+    icon: "🎯",
+  },
+  {
+    title: "Báo cáo trực quan",
+    desc: "Biểu đồ động, so sánh tháng/tuần và gợi ý hành động tối ưu tài chính.",
+    accent: "Insight",
+    icon: "📈",
+  },
+];
+
+const steps = [
+  { label: "Bước 1", title: "Đăng ký miễn phí", copy: "Tạo tài khoản Fintr4ck để mở khóa hệ thống." },
+  { label: "Bước 2", title: "Kết nối & ghi nhận", copy: "Nhập giao dịch, gắn danh mục hoặc sử dụng mẫu có sẵn." },
+  { label: "Bước 3", title: "Theo dõi kết quả", copy: "Dashboard realtime và báo cáo tự động giúp bạn ra quyết định." },
+];
 
 export default function HomePage() {
-  const { t } = useLanguage();
-  const features = t("home.features");
-  const steps = t("home.steps");
   const [isNarrow, setIsNarrow] = useState(
     typeof window !== "undefined" ? window.innerWidth < 960 : false,
   );
@@ -30,8 +52,8 @@ export default function HomePage() {
         <div style={styles.logoGroup}>
           <div style={styles.logoMark}>F</div>
           <div>
-            <div style={styles.logoName}>{t("common.brand")}</div>
-            <div style={styles.logoTagline}>{t("common.tagline")}</div>
+            <div style={styles.logoName}>Fintr4ck</div>
+            <div style={styles.logoTagline}>Personal finance, made confident</div>
           </div>
         </div>
 
@@ -44,23 +66,22 @@ export default function HomePage() {
           }}
         >
           <a style={styles.navItem} href="#features">
-            {t("home.navFeatures")}
+            Tính năng
           </a>
           <a style={styles.navItem} href="#how-it-works">
-            {t("home.navHow")}
+            Cách hoạt động
           </a>
           <a style={styles.navItem} href="#cta">
-            {t("home.navStart")}
+            Bắt đầu
           </a>
         </nav>
 
         <div style={{ ...styles.actions, justifyContent: isNarrow ? "flex-start" : "flex-end" }}>
-          <LanguageSwitcher compact />
           <Link to="/login" style={styles.linkGhost}>
-            {t("common.login")}
+            Đăng nhập
           </Link>
           <Link to="/register" style={styles.linkPrimary}>
-            {t("common.startFree")}
+            Dùng thử miễn phí
           </Link>
         </div>
       </header>
@@ -73,44 +94,47 @@ export default function HomePage() {
           }}
         >
           <div style={styles.heroText}>
-            <div style={styles.pill}>{t("home.pill")}</div>
-            <h1 style={styles.heroTitle}>{t("home.heroTitle")}</h1>
-            <p style={styles.heroDesc}>{t("home.heroDesc")}</p>
+            <div style={styles.pill}>New · Realtime cashflow radar</div>
+            <h1 style={styles.heroTitle}>Làm chủ tài chính cá nhân với nhịp độ nhanh và rõ ràng.</h1>
+            <p style={styles.heroDesc}>
+              Fintr4ck giúp bạn gom mọi giao dịch, kiểm soát ngân sách và nhìn thấy tiến độ mục tiêu
+              chỉ trong một bảng điều khiển. Không còn ghi chép rời rạc hay quên hạn mức.
+            </p>
             <div style={styles.heroCtas}>
               <Link to="/register" style={styles.ctaPrimary}>
-                {t("home.ctaPrimary")}
+                Bắt đầu ngay
               </Link>
               <Link to="/login" style={styles.ctaGhost}>
-                {t("home.ctaSecondary")}
+                Xem dashboard demo
               </Link>
             </div>
             <div style={styles.availability}>
               <span style={styles.availabilityDot} />
-              <span>{t("home.availability")}</span>
+              <span>Luôn miễn phí cho cá nhân · Không yêu cầu thẻ</span>
             </div>
           </div>
 
           <div style={styles.heroPanel}>
             <div style={styles.panelHeader}>
-              <span style={styles.panelTitle}>{t("home.snapshot")}</span>
-              <span style={styles.panelBadge}>{t("home.live")}</span>
+              <span style={styles.panelTitle}>Ảnh chụp tài chính tuần này</span>
+              <span style={styles.panelBadge}>Live</span>
             </div>
             <div style={styles.panelStatRow}>
               <div style={{ ...styles.panelStat, marginRight: 12 }}>
-                <span style={styles.statLabel}>{t("home.netCash")}</span>
+                <span style={styles.statLabel}>Dòng tiền ròng</span>
                 <span style={styles.statValue}>+12,4%</span>
-                <span style={styles.statHint}>{t("home.vsPrev")}</span>
+                <span style={styles.statHint}>vs tuần trước</span>
               </div>
               <div style={{ ...styles.panelStat, background: "rgba(99, 102, 241, 0.08)" }}>
-                <span style={styles.statLabel}>{t("home.budgetUsed")}</span>
+                <span style={styles.statLabel}>Budget dùng</span>
                 <span style={styles.statValue}>62%</span>
-                <span style={styles.statHint}>{t("home.warn")}</span>
+                <span style={styles.statHint}>Cảnh báo ở 80%</span>
               </div>
             </div>
             <div style={styles.trendCard}>
               <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
                 <div style={styles.sparkDot} />
-                <span style={styles.sparkLabel}>{t("home.spendRhythm")}</span>
+                <span style={styles.sparkLabel}>Nhịp chi tiêu 7 ngày</span>
               </div>
               <div style={styles.sparkline}>
                 <div style={{ ...styles.sparkBar, height: 40 }} />
@@ -122,8 +146,8 @@ export default function HomePage() {
                 <div style={{ ...styles.sparkBar, height: 88 }} />
               </div>
               <div style={styles.sparkFooter}>
-                <span style={styles.statHint}>{t("home.stable")}</span>
-                <span style={styles.sparkDelta}>{t("home.spendDelta")}</span>
+                <span style={styles.statHint}>Ổn định, không có ngày vượt mức</span>
+                <span style={styles.sparkDelta}>+5.2% tuần này</span>
               </div>
             </div>
           </div>
@@ -131,9 +155,11 @@ export default function HomePage() {
 
         <section id="features" style={styles.section}>
           <div style={styles.sectionHead}>
-            <div style={styles.kicker}>{t("home.featureKicker")}</div>
-            <h2 style={styles.sectionTitle}>{t("home.featureTitle")}</h2>
-            <p style={styles.sectionDesc}>{t("home.featureDesc")}</p>
+            <div style={styles.kicker}>Tính năng tiêu biểu</div>
+            <h2 style={styles.sectionTitle}>Không chỉ ghi chép, mà là trợ lý tài chính</h2>
+            <p style={styles.sectionDesc}>
+              Mọi thứ bạn cần để giữ tiền bạc có trật tự: từ nhập liệu nhanh, mẫu chi tiêu cho tới báo cáo hành động.
+            </p>
           </div>
           <div style={styles.featuresGrid}>
             {features.map((item) => (
@@ -153,8 +179,8 @@ export default function HomePage() {
 
         <section id="how-it-works" style={styles.section}>
           <div style={styles.sectionHead}>
-            <div style={styles.kicker}>{t("home.howKicker")}</div>
-            <h2 style={styles.sectionTitle}>{t("home.howTitle")}</h2>
+            <div style={styles.kicker}>Cách hoạt động</div>
+            <h2 style={styles.sectionTitle}>3 bước để bạn thấy bức tranh rõ ràng</h2>
           </div>
           <div style={styles.steps}>
             {steps.map((step, idx) => (
@@ -182,16 +208,18 @@ export default function HomePage() {
           }}
         >
           <div>
-            <div style={styles.kicker}>{t("home.ctaKicker")}</div>
-            <h2 style={styles.ctaTitle}>{t("home.ctaTitle")}</h2>
-            <p style={styles.ctaCopy}>{t("home.ctaCopy")}</p>
+            <div style={styles.kicker}>Sẵn sàng thử?</div>
+            <h2 style={styles.ctaTitle}>Kiểm soát tiền bạc ngay hôm nay</h2>
+            <p style={styles.ctaCopy}>
+              Tạo tài khoản miễn phí, theo dõi vài giao dịch đầu tiên và cảm nhận sự khác biệt sau 7 ngày.
+            </p>
           </div>
           <div style={styles.ctaActions}>
             <Link to="/register" style={styles.ctaPrimary}>
-              {t("home.ctaPrimary")}
+              Đăng ký ngay
             </Link>
             <Link to="/login" style={styles.ctaGhost}>
-              {t("home.ctaLogin")}
+              Đã có tài khoản
             </Link>
           </div>
         </section>
