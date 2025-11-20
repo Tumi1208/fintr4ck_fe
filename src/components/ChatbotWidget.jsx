@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const faqPairs = [
   {
@@ -53,8 +53,6 @@ export default function ChatbotWidget() {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages, open]);
-
-  const recommendations = useMemo(() => quickSuggestions.slice(0, 3), []);
 
   function pickAnswer(text) {
     const lower = text.toLowerCase();
