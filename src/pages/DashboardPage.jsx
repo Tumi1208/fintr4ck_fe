@@ -6,15 +6,15 @@ import { apiGetSummary, apiCreateTransaction } from "../api/transactions";
 import { apiGetCategories } from "../api/categories";
 import { apiGetExpenseBreakdown } from "../api/reports";
 import { apiGetMe } from "../api/auth";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-import { Doughnut } from "react-chartjs-2";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from "chart.js";
+import { Doughnut, Bar } from "react-chartjs-2";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import InputField from "../components/ui/InputField";
 import Badge from "../components/ui/Badge";
 import { pageVariants, cardVariants, globalStyles } from "../utils/animations";
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null);
@@ -44,13 +44,26 @@ export default function DashboardPage() {
 
   const chartData = useMemo(() => {
     if (!breakdown || breakdown.length === 0) return null;
+    const labels = breakdown.map((b) => b.name);
+    const values = breakdown.map((b) => b.total || b.amount);
     return {
-      labels: breakdown.map((b) => b.name),
-      datasets: [{
-        data: breakdown.map((b) => b.total || b.amount),
-        backgroundColor: ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"],
-        borderWidth: 0, hoverOffset: 10,
-      }],
+      labels,
+      datasets: [
+        {
+          label: "Chi tiêu",
+          data: values,
+          backgroundColor: [
+            "rgba(59,130,246,0.7)",
+            "rgba(16,185,129,0.7)",
+            "rgba(245,158,11,0.7)",
+            "rgba(239,68,68,0.75)",
+            "rgba(139,92,246,0.7)",
+          ],
+          borderRadius: 10,
+          borderSkipped: false,
+          maxBarThickness: 22,
+        },
+      ],
     };
   }, [breakdown]);
 
@@ -115,26 +128,24 @@ export default function DashboardPage() {
               <Card title="Cơ cấu chi tiêu" style={styles.card}>
                 {chartData ? (
                   <div style={styles.chartWrap}>
-                    <div style={{ width: 180 }}>
-                      <Doughnut data={chartData} options={{ cutout: "70%", plugins: { legend: { display: false } } }} />
-                    </div>
-                    <div style={styles.legendCol}>
-                      {breakdown.slice(0, 4).map((b, i) => (
-                        <div key={b.name} style={styles.legendItem}>
-                          <span
-                            style={{
-                              width: 10,
-                              height: 10,
-                              borderRadius: 10,
-                              background: chartData.datasets[0].backgroundColor[i],
-                              display: "inline-block",
-                            }}
-                          />
-                          <span style={{ flex: 1 }}>{b.name}</span>
-                          <strong>${(b.total || b.amount).toLocaleString()}</strong>
-                        </div>
-                      ))}
-                    </div>
+                    <Bar
+                      data={chartData}
+                      options={{
+                        indexAxis: "y",
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                          x: {
+                            grid: { color: "rgba(148,163,184,0.2)" },
+                            ticks: { color: "var(--text-muted)" },
+                          },
+                          y: {
+                            grid: { display: false },
+                            ticks: { color: "var(--text-strong)", font: { weight: "700" } },
+                          },
+                        },
+                      }}
+                    />
                   </div>
                 ) : (
                   <p style={{ color: "var(--text-muted)" }}>Chưa có dữ liệu.</p>
@@ -252,9 +263,7 @@ const styles = {
   balanceValue: { fontSize: 38, fontWeight: 800, background: globalStyles.gradientBg, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 },
   balanceHint: { color: "var(--text-muted)", fontSize: 13 },
   badgeStack: { display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" },
-  chartWrap: { display: "flex", alignItems: "center", gap: 24 },
-  legendCol: { display: "flex", flexDirection: "column", gap: 8, width: "100%" },
-  legendItem: { display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 8, alignItems: "center", color: "var(--text-strong)", fontSize: 13 },
+  chartWrap: { display: "flex", alignItems: "center", gap: 12, paddingRight: 8 },
   select: {
     flex: 1,
     padding: "12px 14px",
