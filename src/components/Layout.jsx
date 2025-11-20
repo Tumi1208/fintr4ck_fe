@@ -1,5 +1,6 @@
 // src/components/Layout.jsx
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import ChatbotWidget from "./ChatbotWidget";
 
 const navItems = [
   { to: "/app", label: "Dashboard", icon: "📊", exact: true },
@@ -63,6 +64,8 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      <ChatbotWidget />
     </div>
   );
 }
