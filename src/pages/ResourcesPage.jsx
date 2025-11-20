@@ -1,5 +1,6 @@
 // src/pages/ResourcesPage.jsx
 import React from "react";
+import Card from "../components/ui/Card";
 
 export default function ResourcesPage() {
   const resources = [
@@ -46,32 +47,32 @@ export default function ResourcesPage() {
   ];
 
   return (
-    <div style={{ padding: "24px 40px" }}>
+    <div>
       <h1 style={styles.pageTitle}>Góc Kiến Thức Tài Chính 📚</h1>
-      <p style={styles.subTitle}>Tổng hợp các nguồn tài liệu uy tín giúp bạn nâng cao tư duy tài chính.</p>
-      
+      <p style={styles.subTitle}>Tổng hợp nguồn uy tín giúp bạn nâng cao tư duy tài chính.</p>
+
       <div style={styles.grid}>
         {resources.map((item) => (
-          <div key={item.id} style={styles.card}>
-            <a href={item.link} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Card key={item.id} style={styles.card}>
+            <a href={item.link} target="_blank" rel="noreferrer" style={styles.anchor}>
               <div style={styles.thumbWrapper}>
-                  <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
-                  <span style={styles.tag}>
-                    {item.type === 'video' ? 'Video 📺' : item.type === 'article' ? 'Báo VnExpress 📰' : 'Công cụ 🛠️'}
-                  </span>
-                  {item.type === 'video' && (
-                    <div style={styles.playIcon}>▶</div>
-                  )}
+                <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
+                <span style={styles.tag}>
+                  {item.type === "video"
+                    ? "Video 📺"
+                    : item.type === "article"
+                    ? "Báo VnExpress 📰"
+                    : "Công cụ 🛠️"}
+                </span>
+                {item.type === "video" && <div style={styles.playIcon}>▶</div>}
               </div>
               <div style={styles.content}>
-                  <h3 style={styles.cardTitle}>{item.title}</h3>
-                  <p style={styles.cardDesc}>{item.desc}</p>
-                  <span style={styles.linkText}>
-                      Xem chi tiết &rarr;
-                  </span>
+                <h3 style={styles.cardTitle}>{item.title}</h3>
+                <p style={styles.cardDesc}>{item.desc}</p>
+                <span style={styles.linkText}>Xem chi tiết →</span>
               </div>
             </a>
-          </div>
+          </Card>
         ))}
       </div>
     </div>
@@ -79,45 +80,44 @@ export default function ResourcesPage() {
 }
 
 const styles = {
-  pageTitle: { fontSize: 28, color: "#1E293B", marginBottom: 8, fontWeight: 800 },
-  subTitle: { fontSize: 15, color: "#64748B", marginBottom: 32 },
+  pageTitle: { fontSize: 26, color: "var(--text-strong)", marginBottom: 4, fontWeight: 800 },
+  subTitle: { fontSize: 14, color: "var(--text-muted)", marginBottom: 18 },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-    gap: 24,
+    gap: 16,
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
     overflow: "hidden",
-    border: "1px solid #F1F5F9",
-    transition: "transform 0.2s, box-shadow 0.2s",
     cursor: "pointer",
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
   },
+  anchor: { textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", height: "100%" },
   thumbWrapper: {
     height: 180,
     position: "relative",
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#0f172a",
+    overflow: "hidden",
+    borderRadius: 16,
   },
   thumb: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
+    filter: "saturate(1.05)",
   },
   tag: {
     position: "absolute",
     top: 12,
     right: 12,
-    backgroundColor: "rgba(15, 23, 42, 0.85)",
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
     backdropFilter: "blur(4px)",
     padding: "4px 12px",
     borderRadius: 20,
     fontSize: 11,
-    color: "#FFFFFF",
+    color: "#F8FAFC",
     fontWeight: 600,
     boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
   },
@@ -134,7 +134,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     fontSize: 20,
-    color: "#DC2626", // Màu đỏ Youtube
+    color: "#DC2626",
     boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
   },
   content: {
@@ -146,20 +146,20 @@ const styles = {
   cardTitle: {
     fontSize: 16,
     margin: "0 0 8px 0",
-    color: "#0F172A",
+    color: "var(--text-strong)",
     fontWeight: 700,
     lineHeight: 1.4,
   },
   cardDesc: {
     fontSize: 13,
-    color: "#64748B",
+    color: "var(--text-muted)",
     marginBottom: 16,
     flex: 1,
     lineHeight: 1.5,
   },
   linkText: {
     display: "inline-block",
-    color: "#2563EB",
+    color: "#67e8f9",
     fontWeight: 600,
     fontSize: 14,
   }

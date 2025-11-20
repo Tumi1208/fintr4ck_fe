@@ -15,7 +15,7 @@ export default function LoginPage() {
       setSubmitting(true);
       const data = await apiLogin(values);
       localStorage.setItem("fintr4ck_token", data.token);
-      navigate("/");
+      navigate("/app");
     } catch (err) {
       setError(err.message || "Đăng nhập thất bại");
     } finally {

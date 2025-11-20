@@ -15,7 +15,7 @@ export default function RegisterPage() {
       setSubmitting(true);
       const data = await apiRegister(values);
       localStorage.setItem("fintr4ck_token", data.token);
-      navigate("/");
+      navigate("/app");
     } catch (err) {
       setError(err.message || "Đăng ký thất bại");
     } finally {

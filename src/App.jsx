@@ -11,10 +11,14 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import ResourcesPage from "./pages/ResourcesPage";
 import TemplatesPage from "./pages/TemplatesPage";
+import HomePage from "./pages/HomePage";
 
 function App() {
   return (
     <Routes>
+      {/* Trang public */}
+      <Route path="/" element={<HomePage />} />
+
       {/* Auth pages (không có sidebar) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -22,13 +26,13 @@ function App() {
 
       {/* Các trang cần đăng nhập */}
       <Route element={<ProtectedRoute />}>
-        <Route element={<Layout />}>
-          <Route path="/templates" element={<TemplatesPage />} />
-          <Route path="/resources" element={<ResourcesPage />} />
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/transactions" element={<TransactionsPage />} />
-          <Route path="/categories" element={<CategoriesPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/app" element={<Layout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="templates" element={<TemplatesPage />} />
+          <Route path="resources" element={<ResourcesPage />} />
+          <Route path="transactions" element={<TransactionsPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
 

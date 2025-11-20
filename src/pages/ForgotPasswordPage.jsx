@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { authApiHelpers } from "../api/auth"; // Helper để gọi API
+import { authApiHelpers } from "../api/auth";
+import Button from "../components/ui/Button";
+import InputField from "../components/ui/InputField";
 
 export default function ForgotPasswordPage() {
-  const [step, setStep] = useState(1); // Step 1: Nhập form, Step 2: Thông báo thành công
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,16 +27,10 @@ export default function ForgotPasswordPage() {
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Lỗi khi đổi mật khẩu");
 
-      if (!res.ok) {
-        throw new Error(data.message || "Lỗi khi đổi mật khẩu");
-      }
-
-      // Thành công
-      setStep(2); 
-      // Tự động chuyển về login sau 3 giây
+      setStep(2);
       setTimeout(() => navigate("/login"), 3000);
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,56 +42,52 @@ export default function ForgotPasswordPage() {
     <div style={styles.container}>
       <div style={styles.card}>
         <h2 style={styles.title}>Khôi phục mật khẩu</h2>
-        
+
         {step === 1 ? (
-          <form onSubmit={handleReset}>
-            <p style={styles.subtitle}>
-              Nhập email đăng ký và mật khẩu mới để đặt lại.
-            </p>
-            
+          <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <p style={styles.subtitle}>Nhập email đăng ký và mật khẩu mới để đặt lại.</p>
+
             {error && <div style={styles.error}>{error}</div>}
 
-            <div style={styles.field}>
-              <label style={styles.label}>Email</label>
-              <input
-                type="email"
-                style={styles.input}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="name@example.com"
-              />
-            </div>
+            <InputField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="name@example.com"
+            />
 
-            <div style={styles.field}>
-              <label style={styles.label}>Mật khẩu mới</label>
-              <input
-                type="password"
-                style={styles.input}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                placeholder="Tối thiểu 6 ký tự"
-                minLength={6}
-              />
-            </div>
+            <InputField
+              label="Mật khẩu mới"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              placeholder="Tối thiểu 6 ký tự"
+              minLength={6}
+            />
 
-            <button type="submit" style={styles.btn} disabled={loading}>
+            <Button type="submit" fullWidth disabled={loading}>
               {loading ? "Đang xử lý..." : "Đổi mật khẩu ngay"}
-            </button>
+            </Button>
 
             <div style={styles.footerLink}>
-              <Link to="/login" style={styles.link}>&larr; Quay lại đăng nhập</Link>
+              <Link to="/login" style={styles.link}>
+                ← Quay lại đăng nhập
+              </Link>
             </div>
           </form>
         ) : (
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-            <h3 style={{ color: "#10B981", marginBottom: 8 }}>Thành công!</h3>
-            <p style={{ color: "#64748B", marginBottom: 24 }}>
-              Mật khẩu của bạn đã được cập nhật. <br/> Đang chuyển hướng về trang đăng nhập...
+            <h3 style={{ color: "#4ade80", marginBottom: 8 }}>Thành công!</h3>
+            <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>
+              Mật khẩu của bạn đã được cập nhật. <br /> Đang chuyển hướng về trang đăng nhập...
             </p>
-            <Link to="/login" style={styles.btn}>Đăng nhập ngay</Link>
+            <Link to="/login" style={styles.btnLink}>
+              Đăng nhập ngay
+            </Link>
           </div>
         )}
       </div>
@@ -109,59 +101,53 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F1F5F9",
+    background:
+      "radial-gradient(circle at 20% 20%, rgba(14,165,233,0.18), transparent 32%), radial-gradient(circle at 80% 0%, rgba(124,58,237,0.22), transparent 30%), #0B1021",
+    padding: 24,
   },
   card: {
     width: "100%",
-    maxWidth: 400,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 32,
-    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+    maxWidth: 420,
+    backgroundColor: "rgba(15,23,42,0.75)",
+    borderRadius: 26,
+    padding: 28,
+    boxShadow: "0 22px 60px rgba(0,0,0,0.4)",
+    border: "1px solid rgba(148,163,184,0.2)",
+    color: "var(--text-strong)",
   },
   title: {
     fontSize: 24,
     fontWeight: 700,
-    color: "#1E293B",
+    color: "var(--text-strong)",
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
-    color: "#64748B",
+    color: "var(--text-muted)",
     textAlign: "center",
-    marginBottom: 24,
-  },
-  field: { marginBottom: 16 },
-  label: { display: "block", fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 500 },
-  input: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: "1px solid #CBD5E1",
-    fontSize: 14,
-    outline: "none",
-  },
-  btn: {
-    width: "100%",
-    padding: "12px",
-    borderRadius: 999,
-    border: "none",
-    backgroundColor: "#2563EB",
-    color: "#FFFFFF",
-    fontWeight: 600,
-    cursor: "pointer",
-    marginTop: 8,
+    marginBottom: 8,
   },
   error: {
-    backgroundColor: "#FEE2E2",
-    color: "#DC2626",
+    backgroundColor: "rgba(248,113,113,0.12)",
+    color: "#fca5a5",
     padding: "8px 12px",
-    borderRadius: 8,
+    borderRadius: 12,
     fontSize: 13,
-    marginBottom: 16,
+    marginBottom: 6,
     textAlign: "center",
   },
-  footerLink: { textAlign: "center", marginTop: 20 },
-  link: { color: "#2563EB", textDecoration: "none", fontSize: 14 },
+  footerLink: { textAlign: "center", marginTop: 4 },
+  link: { color: "#bfdbfe", textDecoration: "none", fontSize: 14, fontWeight: 700 },
+  btnLink: {
+    display: "inline-flex",
+    padding: "12px 16px",
+    borderRadius: 14,
+    border: "1px solid rgba(148,163,184,0.2)",
+    backgroundColor: "rgba(226,232,240,0.08)",
+    color: "var(--text-strong)",
+    textDecoration: "none",
+    fontWeight: 700,
+  },
 };
+

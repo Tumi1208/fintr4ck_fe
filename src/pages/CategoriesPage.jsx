@@ -6,6 +6,10 @@ import {
   apiUpdateCategory,
   apiDeleteCategory,
 } from "../api/categories";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import InputField from "../components/ui/InputField";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -97,17 +101,17 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <h1 style={styles.pageTitle}>Manage Categories</h1>
-
-      <div style={styles.headerRow}>
-        <button style={styles.primaryBtn} onClick={openCreateModal}>
-          Add New Category
-        </button>
+      <div style={styles.pageHead}>
+        <div>
+          <p style={styles.kicker}>Danh mục</p>
+          <h1 style={styles.title}>Categories</h1>
+          <p style={styles.lead}>Tổ chức thu/chi rõ ràng để báo cáo mượt mà.</p>
+        </div>
+        <Button onClick={openCreateModal}>Thêm danh mục</Button>
       </div>
 
       <div style={styles.gridTwo}>
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Income</h2>
+        <Card title="Income categories" style={styles.card}>
           <div style={styles.catGrid}>
             {incomeCats.map((c) => (
               <CategoryCard
@@ -117,15 +121,11 @@ export default function CategoriesPage() {
                 onDelete={() => handleDelete(c)}
               />
             ))}
-
-            {incomeCats.length === 0 && (
-              <p style={styles.emptyText}>Chưa có danh mục thu nhập</p>
-            )}
+            {incomeCats.length === 0 && <p style={styles.emptyText}>Chưa có danh mục thu nhập</p>}
           </div>
-        </div>
+        </Card>
 
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Expense</h2>
+        <Card title="Expense categories" style={styles.card}>
           <div style={styles.catGrid}>
             {expenseCats.map((c) => (
               <CategoryCard
@@ -135,73 +135,48 @@ export default function CategoriesPage() {
                 onDelete={() => handleDelete(c)}
               />
             ))}
-
-            {expenseCats.length === 0 && (
-              <p style={styles.emptyText}>Chưa có danh mục chi tiêu</p>
-            )}
+            {expenseCats.length === 0 && <p style={styles.emptyText}>Chưa có danh mục chi tiêu</p>}
           </div>
-        </div>
+        </Card>
       </div>
 
       {modalOpen && (
         <div style={styles.modalBackdrop}>
           <div style={styles.modalCard}>
-            <h2 style={styles.modalTitle}>
-              {editing ? "Edit Category" : "Add New Category"}
-            </h2>
+            <h2 style={styles.modalTitle}>{editing ? "Sửa danh mục" : "Tạo danh mục"}</h2>
 
-            <form onSubmit={handleSave}>
-              <div style={styles.field}>
-                <label style={styles.label}>Name</label>
-                <input
-                  style={styles.input}
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  required
-                />
-              </div>
+            <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <InputField
+                label="Tên"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                required
+              />
 
-              <div style={styles.field}>
-                <label style={styles.label}>Type</label>
-                <select
-                  style={styles.select}
-                  value={form.type}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, type: e.target.value }))
-                  }
-                >
-                  <option value="income">Income</option>
-                  <option value="expense">Expense</option>
-                </select>
-              </div>
+              <label style={styles.label}>Loại</label>
+              <select
+                style={styles.select}
+                value={form.type}
+                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+              >
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
 
-              <div style={styles.field}>
-                <label style={styles.label}>Icon (optional)</label>
-                <input
-                  style={styles.input}
-                  placeholder="VD: 💰, 🍔, 🏠"
-                  value={form.icon}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, icon: e.target.value }))
-                  }
-                />
-              </div>
+              <InputField
+                label="Icon (tùy chọn)"
+                placeholder="VD: 💰, 🍔, 🏠"
+                value={form.icon}
+                onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
+              />
 
               {error && <div style={styles.errorText}>{error}</div>}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button
-                  type="button"
-                  style={styles.secondaryBtn}
-                  onClick={() => setModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" style={styles.primaryBtn}>
-                  Save
-                </button>
+                <Button variant="subtle" onClick={() => setModalOpen(false)} type="button">
+                  Hủy
+                </Button>
+                <Button type="submit">Lưu</Button>
               </div>
             </form>
           </div>
@@ -246,50 +221,25 @@ function CategoryCard({ category, onEdit, onDelete }) {
 }
 
 const styles = {
-  pageTitle: {
-    fontSize: 24,
-    marginBottom: 16,
-    color: "#1E293B",
-  },
-  headerRow: {
-    marginBottom: 16,
-  },
-  primaryBtn: {
-    padding: "8px 14px",
+  pageHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  kicker: {
+    display: "inline-flex",
+    padding: "6px 10px",
     borderRadius: 999,
-    border: "none",
-    backgroundColor: "#2563EB",
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
+    background: "rgba(226,232,240,0.06)",
+    border: "1px solid var(--border-soft)",
+    color: "var(--text-muted)",
+    fontSize: 12,
   },
-  secondaryBtn: {
-    padding: "8px 14px",
-    borderRadius: 999,
-    border: "1px solid #CBD5E1",
-    backgroundColor: "#FFFFFF",
-    color: "#0F172A",
-    fontSize: 13,
-    cursor: "pointer",
-  },
+  title: { margin: "8px 0 4px", color: "var(--text-strong)", fontSize: 26, letterSpacing: -0.3 },
+  lead: { margin: 0, color: "var(--text-muted)" },
   gridTwo: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 24,
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: 16,
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 20,
-    boxShadow:
-      "0 10px 15px -3px rgb(15 23 42 / 0.12), 0 4px 6px -4px rgb(15 23 42 / 0.1)",
-  },
-  cardTitle: {
-    margin: 0,
-    marginBottom: 12,
-    fontSize: 16,
-    color: "#1E293B",
+    minHeight: 280,
   },
   catGrid: {
     display: "grid",
@@ -297,18 +247,19 @@ const styles = {
     gap: 12,
   },
   catCard: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "rgba(226,232,240,0.06)",
     borderRadius: 16,
     padding: 12,
     display: "flex",
     flexDirection: "column",
     minHeight: 96,
+    border: "1px solid rgba(148,163,184,0.15)",
   },
   catIcon: {
     width: 32,
     height: 32,
     borderRadius: 999,
-    backgroundColor: "#E0F2FE",
+    backgroundColor: "rgba(14,165,233,0.15)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -316,7 +267,7 @@ const styles = {
   },
   catName: {
     fontSize: 14,
-    color: "#0F172A",
+    color: "var(--text-strong)",
     fontWeight: 600,
   },
   tag: {
@@ -328,12 +279,12 @@ const styles = {
   },
   emptyText: {
     fontSize: 13,
-    color: "#64748B",
+    color: "var(--text-muted)",
   },
   modalBackdrop: {
     position: "fixed",
     inset: 0,
-    backgroundColor: "rgba(15,23,42,0.35)",
+    backgroundColor: "rgba(15,23,42,0.65)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -341,47 +292,40 @@ const styles = {
   },
   modalCard: {
     width: 380,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(15,23,42,0.9)",
     borderRadius: 24,
     padding: 20,
-    boxShadow:
-      "0 10px 15px -3px rgb(15 23 42 / 0.2), 0 4px 6px -4px rgb(15 23 42 / 0.15)",
+    boxShadow: "0 22px 60px rgba(0,0,0,0.45)",
+    border: "1px solid rgba(148,163,184,0.25)",
+    color: "var(--text-strong)",
   },
   modalTitle: {
     margin: 0,
     marginBottom: 16,
     fontSize: 18,
-    color: "#1E293B",
+    color: "var(--text-strong)",
   },
   field: {
     marginBottom: 12,
   },
   label: {
     display: "block",
-    fontSize: 13,
-    color: "#64748B",
+    fontSize: 12,
+    color: "var(--text-muted)",
     marginBottom: 4,
-  },
-  input: {
-    width: "100%",
-    padding: "8px 10px",
-    borderRadius: 12,
-    border: "1px solid #CBD5E1",
-    backgroundColor: "#F8FAFC",
-    fontSize: 13,
   },
   select: {
     width: "100%",
-    padding: "8px 10px",
-    borderRadius: 12,
-    border: "1px solid #CBD5E1",
-    backgroundColor: "#F8FAFC",
-    fontSize: 13,
+    padding: "10px 12px",
+    borderRadius: "var(--radius-md)",
+    border: "1px solid rgba(148,163,184,0.25)",
+    backgroundColor: "rgba(226,232,240,0.06)",
+    color: "var(--text-strong)",
   },
   errorText: {
     fontSize: 13,
-    color: "#EF4444",
-    marginBottom: 8,
+    color: "#fca5a5",
+    marginBottom: 4,
   },
   iconBtn: {
     border: "none",
@@ -389,5 +333,6 @@ const styles = {
     cursor: "pointer",
     fontSize: 16,
     marginLeft: 4,
+    color: "var(--text-muted)",
   },
 };

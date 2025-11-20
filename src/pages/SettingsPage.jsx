@@ -7,8 +7,17 @@ import {
   apiChangePassword,
   apiDeleteMe,
 } from "../api/users";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import InputField from "../components/ui/InputField";
+import Badge from "../components/ui/Badge";
+import { useLanguage } from "../i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
+
+const PREFS_KEY = "fintr4ck_prefs";
 
 export default function SettingsPage() {
+  const { t } = useLanguage();
   const [user, setUser] = useState(null);
 
   // Profile
@@ -25,9 +34,19 @@ export default function SettingsPage() {
   const [pwdMsg, setPwdMsg] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
   const [showPwdForm, setShowPwdForm] = useState(false);
+  const [pwdStrength, setPwdStrength] = useState("weak");
 
   // Danger zone
   const [dangerLoading, setDangerLoading] = useState(false);
+  const [dangerConfirm, setDangerConfirm] = useState("");
+
+  // Preferences (local only)
+  const [prefs, setPrefs] = useState({
+    currency: "VND",
+    defaultRange: "monthly",
+    tips: true,
+  });
+  const [prefsMsg, setPrefsMsg] = useState("");
 
   const navigate = useNavigate();
 
@@ -39,6 +58,12 @@ export default function SettingsPage() {
         setName(data.user.name || "");
       } catch (err) {
         console.error(err);
+      }
+      try {
+        const rawPrefs = localStorage.getItem(PREFS_KEY);
+        if (rawPrefs) setPrefs((p) => ({ ...p, ...JSON.parse(rawPrefs) }));
+      } catch (err) {
+        console.warn("Cannot load prefs", err);
       }
     }
     init();
@@ -73,6 +98,11 @@ export default function SettingsPage() {
         return;
       }
 
+      if (pwdStrength === "weak") {
+        setPwdMsg("Mật khẩu yếu, hãy thêm số, ký tự đặc biệt hoặc dài hơn 8 ký tự");
+        return;
+      }
+
       setPwdLoading(true);
       await apiChangePassword({
         currentPassword: pwdForm.currentPassword,
@@ -89,6 +119,16 @@ export default function SettingsPage() {
       setPwdMsg(err.message || "Không thể đổi mật khẩu");
     } finally {
       setPwdLoading(false);
+    }
+  }
+
+  function handlePrefsSave() {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+      setPrefsMsg("Đã lưu tuỳ chọn trên thiết bị này");
+      setTimeout(() => setPrefsMsg(""), 2000);
+    } catch (err) {
+      setPrefsMsg("Không thể lưu tuỳ chọn");
     }
   }
 
@@ -115,71 +155,84 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 style={styles.pageTitle}>Settings</h1>
+      <div style={styles.head}>
+        <div>
+          <p style={styles.kicker}>{t("settings.headerKicker")}</p>
+          <h1 style={styles.pageTitle}>{t("settings.headerTitle")}</h1>
+          <p style={styles.lead}>{t("settings.headerLead")}</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <LanguageSwitcher compact />
+          {user && <Badge tone="info">ID: {user._id?.slice(-6) || "user"}</Badge>}
+        </div>
+      </div>
 
-      <div style={styles.card}>
-        <h2 style={styles.cardTitle}>Profile Information</h2>
+      <Card title="Profile Information" style={styles.card}>
         <p style={styles.description}>
-          Quản lý thông tin hồ sơ cá nhân của bạn.
+          {t("settings.profileDesc")}
         </p>
+        <div style={styles.profileSummary}>
+          <div style={styles.avatar}>{(user?.name || "F")[0]?.toUpperCase()}</div>
+          <div>
+            <div style={styles.summaryText}>{user?.name || "Chưa đặt tên"}</div>
+            <div style={styles.summarySub}>{user?.email || "Đang tải email..."}</div>
+            <div style={styles.summaryMeta}>
+              <span>Account ID: {user?._id || "..."}</span>
+              <span>{user?.createdAt ? `Created: ${new Date(user.createdAt).toLocaleDateString()}` : "Created: --"}</span>
+              <span>Role: {user?.role || "user"}</span>
+              <span>{t("common.tagline")}</span>
+            </div>
+          </div>
+        </div>
 
         <div style={styles.profileRow}>
           <div style={{ flex: 1 }}>
-            <div style={styles.field}>
-              <label style={styles.label}>Name</label>
-              <input
-                style={styles.input}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
+            <InputField
+              label="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Tên hiển thị"
+            />
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={styles.field}>
-              <label style={styles.label}>Email</label>
-              <input
-                style={{ ...styles.input, backgroundColor: "#E5E7EB" }}
-                value={user?.email || ""}
-                disabled
-              />
-            </div>
+            <InputField label="Email" value={user?.email || ""} disabled />
           </div>
         </div>
 
         {profileMsg && <div style={styles.infoText}>{profileMsg}</div>}
 
-        <button
-          style={styles.primaryBtn}
-          onClick={handleProfileSave}
-          disabled={savingProfile}
-        >
-          {savingProfile ? "Đang lưu..." : "Save Changes"}
-        </button>
-      </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Button onClick={handleProfileSave} disabled={savingProfile}>
+            {savingProfile ? "..." : t("common.save")}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              localStorage.removeItem("fintr4ck_token");
+              navigate("/login");
+            }}
+          >
+            {t("common.logout")}
+          </Button>
+        </div>
+      </Card>
 
-      <div style={styles.card}>
-        <h2 style={styles.cardTitle}>Security</h2>
-        <p style={styles.description}>
-          Đổi mật khẩu để bảo vệ tài khoản của bạn.
-        </p>
+      <Card title={t("settings.security")} style={styles.card}>
+        <p style={styles.description}>Đổi mật khẩu để bảo vệ tài khoản của bạn.</p>
 
         {!showPwdForm && (
-          <button
-            style={styles.secondaryBtn}
-            onClick={() => setShowPwdForm(true)}
-          >
-            Change Password
-          </button>
+          <Button variant="ghost" onClick={() => setShowPwdForm(true)}>
+            Đổi mật khẩu
+          </Button>
         )}
 
         {showPwdForm && (
-          <form onSubmit={handleChangePassword} style={{ marginTop: 16 }}>
+          <form onSubmit={handleChangePassword} style={{ marginTop: 12 }}>
             <div style={styles.profileRow}>
               <div style={styles.field}>
-                <label style={styles.label}>Current Password</label>
-                <input
-                  style={styles.input}
+                <InputField
+                  label="Mật khẩu hiện tại"
                   type="password"
                   value={pwdForm.currentPassword}
                   onChange={(e) =>
@@ -191,23 +244,21 @@ export default function SettingsPage() {
                 />
               </div>
               <div style={styles.field}>
-                <label style={styles.label}>New Password</label>
-                <input
-                  style={styles.input}
+                <InputField
+                  label="Mật khẩu mới"
                   type="password"
                   value={pwdForm.newPassword}
-                  onChange={(e) =>
-                    setPwdForm((f) => ({
-                      ...f,
-                      newPassword: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPwdForm((f) => ({ ...f, newPassword: v }));
+                    setPwdStrength(getStrength(v));
+                  }}
+                  hint={`Độ mạnh: ${pwdStrength}`}
                 />
               </div>
               <div style={styles.field}>
-                <label style={styles.label}>Confirm New Password</label>
-                <input
-                  style={styles.input}
+                <InputField
+                  label="Xác nhận mật khẩu mới"
                   type="password"
                   value={pwdForm.confirmPassword}
                   onChange={(e) =>
@@ -223,9 +274,9 @@ export default function SettingsPage() {
             {pwdMsg && <div style={styles.infoText}>{pwdMsg}</div>}
 
             <div style={{ display: "flex", gap: 8 }}>
-              <button
+              <Button
                 type="button"
-                style={styles.secondaryBtn}
+                variant="subtle"
                 onClick={() => {
                   setShowPwdForm(false);
                   setPwdForm({
@@ -236,59 +287,151 @@ export default function SettingsPage() {
                   setPwdMsg("");
                 }}
               >
-                Cancel
-              </button>
-              <button type="submit" style={styles.primaryBtn}>
-                {pwdLoading ? "Đang đổi..." : "Save"}
-              </button>
+                Hủy
+              </Button>
+              <Button type="submit">{pwdLoading ? "Đang đổi..." : "Lưu"}</Button>
             </div>
           </form>
         )}
-      </div>
+      </Card>
 
-      <div style={styles.card}>
-        <h2 style={styles.cardTitle}>Danger Zone</h2>
-        <p style={styles.description}>
-          Xoá tài khoản và toàn bộ dữ liệu liên quan. Hãy cẩn thận.
-        </p>
+      <Card title="Preferences" style={styles.card}>
+        <p style={styles.description}>Tuỳ chỉnh hiển thị cục bộ (lưu trên trình duyệt của bạn).</p>
+        <div style={styles.profileRow}>
+          <div style={styles.field}>
+            <label style={styles.label}>Tiền tệ mặc định</label>
+            <select
+              style={styles.select}
+              value={prefs.currency}
+              onChange={(e) => setPrefs((p) => ({ ...p, currency: e.target.value }))}
+            >
+              <option value="VND">VND</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Khoảng thời gian mặc định</label>
+            <select
+              style={styles.select}
+              value={prefs.defaultRange}
+              onChange={(e) => setPrefs((p) => ({ ...p, defaultRange: e.target.value }))}
+            >
+              <option value="monthly">Theo tháng</option>
+              <option value="weekly">Theo tuần</option>
+              <option value="quarterly">Theo quý</option>
+            </select>
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Gợi ý mẹo tài chính</label>
+            <Button
+              variant="ghost"
+              onClick={() => setPrefs((p) => ({ ...p, tips: !p.tips }))}
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              {prefs.tips ? "Đang bật" : "Đang tắt"}
+            </Button>
+            <div style={styles.helper}>Hiển thị mẹo tài chính (ví dụ nhắc nhở chi tiêu) trong Dashboard/Transactions. Lưu cục bộ.</div>
+          </div>
+        </div>
+        {prefsMsg && <div style={styles.infoText}>{prefsMsg}</div>}
+        <Button onClick={handlePrefsSave}>Lưu tuỳ chọn</Button>
+      </Card>
 
-        <button
-          style={styles.dangerBtn}
+      <Card title="Danger Zone" style={styles.card}>
+        <p style={styles.description}>Xoá tài khoản và toàn bộ dữ liệu liên quan. Hãy cẩn thận.</p>
+
+        <InputField
+          label='Gõ "DELETE" để xác nhận'
+          value={dangerConfirm}
+          onChange={(e) => setDangerConfirm(e.target.value)}
+          placeholder="DELETE"
+        />
+
+        <Button
+          variant="danger"
           onClick={handleDeleteAccount}
-          disabled={dangerLoading}
+          disabled={dangerLoading || dangerConfirm !== "DELETE"}
         >
-          {dangerLoading ? "Đang xoá..." : "Delete Account"}
-        </button>
-      </div>
+          {dangerLoading ? "Đang xoá..." : "Xoá tài khoản"}
+        </Button>
+      </Card>
     </div>
   );
 }
 
+function getStrength(value) {
+  let score = 0;
+  if (value.length >= 8) score++;
+  if (/[A-Z]/.test(value)) score++;
+  if (/[0-9]/.test(value)) score++;
+  if (/[^A-Za-z0-9]/.test(value)) score++;
+
+  if (score >= 3) return "strong";
+  if (score >= 2) return "medium";
+  return "weak";
+}
+
 const styles = {
+  head: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  kicker: {
+    display: "inline-flex",
+    padding: "6px 10px",
+    borderRadius: 999,
+    background: "rgba(226,232,240,0.06)",
+    border: "1px solid var(--border-soft)",
+    color: "var(--text-muted)",
+    fontSize: 12,
+  },
   pageTitle: {
     fontSize: 24,
     marginBottom: 16,
-    color: "#1E293B",
+    color: "var(--text-strong)",
+  },
+  lead: {
+    margin: "6px 0 0",
+    color: "#cbd5e1",
+    lineHeight: 1.4,
+    maxWidth: 720,
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
-    boxShadow:
-      "0 10px 15px -3px rgb(15 23 42 / 0.12), 0 4px 6px -4px rgb(15 23 42 / 0.1)",
-    marginBottom: 20,
+    marginBottom: 16,
   },
+  profileSummary: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "10px 12px",
+    borderRadius: 14,
+    background: "rgba(226,232,240,0.05)",
+    border: "1px solid rgba(148,163,184,0.12)",
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    background: "linear-gradient(135deg, rgba(99,102,241,0.95), rgba(14,165,233,0.9))",
+    display: "grid",
+    placeItems: "center",
+    fontWeight: 800,
+    color: "#0b1021",
+    fontSize: 18,
+  },
+  summaryText: { fontWeight: 800, color: "var(--text-strong)", fontSize: 16 },
+  summarySub: { color: "var(--text-muted)", fontSize: 13 },
+  summaryMeta: { color: "var(--text-muted)", fontSize: 12, display: "flex", gap: 12 },
   cardTitle: {
     margin: 0,
     marginBottom: 8,
     fontSize: 18,
-    color: "#1E293B",
+    color: "var(--text-strong)",
   },
   description: {
     margin: 0,
     marginBottom: 16,
     fontSize: 13,
-    color: "#64748B",
+    color: "var(--text-muted)",
   },
   profileRow: {
     display: "flex",
@@ -304,49 +447,21 @@ const styles = {
   label: {
     display: "block",
     fontSize: 13,
-    color: "#64748B",
+    color: "var(--text-muted)",
     marginBottom: 4,
   },
-  input: {
+  select: {
     width: "100%",
-    padding: "8px 10px",
-    borderRadius: 12,
-    border: "1px solid #CBD5E1",
-    backgroundColor: "#F8FAFC",
-    fontSize: 14,
+    padding: "10px 12px",
+    borderRadius: "var(--radius-md)",
+    border: "1px solid rgba(148,163,184,0.25)",
+    backgroundColor: "rgba(226,232,240,0.06)",
+    color: "var(--text-strong)",
   },
-  primaryBtn: {
-    padding: "8px 16px",
-    borderRadius: 999,
-    border: "none",
-    backgroundColor: "#2563EB",
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  secondaryBtn: {
-    padding: "8px 16px",
-    borderRadius: 999,
-    border: "1px solid #CBD5E1",
-    backgroundColor: "#FFFFFF",
-    color: "#0F172A",
-    fontSize: 13,
-    cursor: "pointer",
-  },
-  dangerBtn: {
-    padding: "8px 16px",
-    borderRadius: 999,
-    border: "none",
-    backgroundColor: "#EF4444",
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
+  helper: { marginTop: 6, fontSize: 12, color: "var(--text-muted)" },
   infoText: {
     fontSize: 13,
-    color: "#16A34A",
+    color: "#67e8f9",
     marginBottom: 8,
   },
 };

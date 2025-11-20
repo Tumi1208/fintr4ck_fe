@@ -1,6 +1,8 @@
 // src/pages/TemplatesPage.jsx
 import React, { useState } from "react";
 import { apiCreateCategory } from "../api/categories"; // Tận dụng API cũ
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
 
 export default function TemplatesPage() {
   const [loading, setLoading] = useState(false);
@@ -85,37 +87,41 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div style={{ padding: "24px 40px" }}>
-      <h1 style={styles.pageTitle}>Mẫu Danh Mục (Templates) 📋</h1>
-      <p style={styles.subTitle}>Chọn một gói phù hợp để khởi tạo nhanh các danh mục thu chi.</p>
-      
-      {loading && <p style={{color: '#2563EB', fontWeight: 'bold'}}>⏳ Đang khởi tạo dữ liệu...</p>}
+    <div>
+      <div style={styles.head}>
+        <div>
+          <p style={styles.kicker}>Templates</p>
+          <h1 style={styles.title}>Khởi tạo nhanh danh mục</h1>
+          <p style={styles.lead}>Chọn gói phù hợp để thêm hàng loạt danh mục đã thiết kế sẵn.</p>
+        </div>
+        {loading && <span style={{ color: "#bfdbfe", fontWeight: 700 }}>⏳ Đang khởi tạo...</span>}
+      </div>
 
       <div style={styles.grid}>
         {templates.map((tpl) => (
-          <div key={tpl.id} style={{ ...styles.card, backgroundColor: tpl.color }}>
+          <Card key={tpl.id} style={{ ...styles.card, borderColor: tpl.btnColor }}>
             <div style={styles.cardHeader}>
-                <h3 style={styles.cardTitle}>{tpl.title}</h3>
-                <p style={styles.cardDesc}>{tpl.desc}</p>
-            </div>
-            
-            {/* Preview danh sách */}
-            <div style={styles.previewList}>
-                {tpl.categories.map((c, idx) => (
-                    <span key={idx} style={styles.tag}>
-                        {c.icon} {c.name}
-                    </span>
-                ))}
+              <h3 style={styles.cardTitle}>{tpl.title}</h3>
+              <p style={styles.cardDesc}>{tpl.desc}</p>
             </div>
 
-            <button 
-                style={{...styles.btn, backgroundColor: tpl.btnColor}} 
-                onClick={() => handleApply(tpl)}
-                disabled={loading}
+            <div style={styles.previewList}>
+              {tpl.categories.map((c, idx) => (
+                <span key={idx} style={styles.tag}>
+                  {c.icon} {c.name}
+                </span>
+              ))}
+            </div>
+
+            <Button
+              style={{ borderColor: "transparent", backgroundColor: tpl.btnColor, color: "#0b1021" }}
+              onClick={() => handleApply(tpl)}
+              disabled={loading}
+              fullWidth
             >
-                {loading ? "Đang thêm..." : "Áp dụng gói này ✨"}
-            </button>
-          </div>
+              {loading ? "Đang thêm..." : "Áp dụng gói này ✨"}
+            </Button>
+          </Card>
         ))}
       </div>
     </div>
@@ -123,25 +129,32 @@ export default function TemplatesPage() {
 }
 
 const styles = {
-  pageTitle: { fontSize: 28, color: "#1E293B", marginBottom: 8, fontWeight: 800 },
-  subTitle: { fontSize: 15, color: "#64748B", marginBottom: 32 },
+  head: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  kicker: {
+    display: "inline-flex",
+    padding: "6px 10px",
+    borderRadius: 999,
+    background: "rgba(226,232,240,0.06)",
+    border: "1px solid var(--border-soft)",
+    color: "var(--text-muted)",
+    fontSize: 12,
+  },
+  title: { fontSize: 26, color: "var(--text-strong)", margin: "8px 0 4px", fontWeight: 800 },
+  lead: { fontSize: 14, color: "var(--text-muted)", margin: 0 },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-    gap: 24,
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+    gap: 16,
   },
   card: {
     borderRadius: 24,
-    padding: 24,
+    padding: 20,
     display: "flex",
     flexDirection: "column",
-    border: "1px solid rgba(0,0,0,0.05)",
-    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)",
-    transition: "transform 0.2s",
   },
   cardHeader: { marginBottom: 16 },
-  cardTitle: { fontSize: 20, fontWeight: 700, color: "#1E293B", marginBottom: 8 },
-  cardDesc: { fontSize: 14, color: "#475569", lineHeight: 1.5 },
+  cardTitle: { fontSize: 18, fontWeight: 700, color: "var(--text-strong)", marginBottom: 8 },
+  cardDesc: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5 },
   previewList: {
     display: "flex",
     flexWrap: "wrap",
@@ -150,23 +163,12 @@ const styles = {
     flex: 1,
   },
   tag: {
-    backgroundColor: "rgba(255,255,255,0.6)",
-    padding: "4px 10px",
-    borderRadius: 8,
+    backgroundColor: "rgba(226,232,240,0.08)",
+    padding: "6px 10px",
+    borderRadius: 10,
     fontSize: 12,
-    color: "#334155",
+    color: "var(--text-strong)",
     fontWeight: 600,
+    border: "1px solid rgba(148,163,184,0.2)",
   },
-  btn: {
-    width: "100%",
-    padding: "12px",
-    borderRadius: 12,
-    border: "none",
-    color: "#FFFFFF",
-    fontWeight: 700,
-    fontSize: 14,
-    cursor: "pointer",
-    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-    transition: "opacity 0.2s",
-  }
 };
