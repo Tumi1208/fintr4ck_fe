@@ -74,7 +74,8 @@ export default function ChatbotWidget() {
     <div style={styles.shell}>
       {!open && (
         <button style={styles.fab} onClick={() => setOpen(true)} aria-label="Mở chatbot">
-          🤖 FIntrAI
+          <img src="/logo.svg" alt="FIntrAI" style={{ width: 18, height: 18 }} />
+          <span>FIntrAI</span>
         </button>
       )}
 
@@ -145,7 +146,7 @@ const styles = {
     zIndex: 999,
   },
   fab: {
-    padding: "12px 14px",
+    padding: "10px 14px",
     borderRadius: 16,
     border: "1px solid rgba(148,163,184,0.25)",
     background: "linear-gradient(135deg, rgba(99,102,241,0.9), rgba(14,165,233,0.9))",
@@ -153,6 +154,9 @@ const styles = {
     fontWeight: 800,
     cursor: "pointer",
     boxShadow: "0 18px 30px rgba(14,165,233,0.35)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
   },
   panel: {
     width: 340,

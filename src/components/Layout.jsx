@@ -24,7 +24,7 @@ export default function Layout() {
       <div style={styles.backdrop} />
       <aside style={styles.sidebar}>
         <div style={styles.sideLogo}>
-          <div style={styles.logoCircle}>F</div>
+          <img src="/logo.svg" alt="Fintr4ck" style={styles.logoImg} />
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={styles.logoText}>Fintr4ck</span>
             <span style={styles.logoSub}>Personal Finance</span>
@@ -101,19 +101,10 @@ const styles = {
     display: "flex",
     alignItems: "center",
   },
-  logoCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: "999px",
-    background:
-      "linear-gradient(135deg, rgba(14,165,233,0.9), rgba(124,58,237,0.95))",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#0B1021",
-    fontWeight: 700,
+  logoImg: {
+    width: 38,
+    height: 38,
     marginRight: 10,
-    boxShadow: "0 12px 30px rgba(124,58,237,0.35)",
   },
   logoText: {
     fontWeight: 700,
