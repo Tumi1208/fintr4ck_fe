@@ -13,14 +13,52 @@ const palette = {
   shadow: "0 22px 60px rgba(0,0,0,0.45)",
 };
 
-const tabs = ["Tài khoản", "Ngân sách", "Danh mục", "Báo cáo", "Mẹo tiết kiệm"];
-
-const popularCities = [
-  ["Tiền mặt", "Thẻ tín dụng", "Ví điện tử", "Tài khoản tiết kiệm", "Quỹ khẩn cấp"],
-  ["Ngân sách sinh hoạt", "Ngân sách học tập", "Ngân sách đi lại", "Ngân sách mua sắm", "Ngân sách du lịch"],
-  ["Danh mục cố định", "Danh mục định kỳ", "Chi tiêu linh hoạt", "Thu nhập thụ động", "Khoản đầu tư"],
-  ["Báo cáo tuần", "Báo cáo tháng", "So sánh kế hoạch", "Cảnh báo vượt ngưỡng", "Dòng tiền ròng"],
-  ["Tips tiết kiệm", "Checklist tài chính", "Thử thách 30 ngày", "Mẫu quản lý", "Tự động hoá"],
+const tabSections = [
+  {
+    label: "Tài khoản",
+    subtitle: "Tổng quan ví, ngân hàng, quỹ dự phòng",
+    columns: [
+      ["Tiền mặt", "Thẻ tín dụng", "Ví điện tử", "Tài khoản tiết kiệm", "Quỹ khẩn cấp"],
+      ["Joint account", "Tài khoản lãi suất cao", "Tài khoản USD", "Ví travel", "Ví gia đình"],
+      ["Thẻ trả góp", "Thẻ tích điểm", "Thẻ cashback", "Thẻ công ty", "Ví sinh viên"],
+    ],
+  },
+  {
+    label: "Ngân sách",
+    subtitle: "Chạm nhẹ để chia ngân sách theo mục tiêu",
+    columns: [
+      ["Ngân sách sinh hoạt", "Ngân sách học tập", "Ngân sách đi lại", "Ngân sách mua sắm", "Ngân sách du lịch"],
+      ["Zero-based budget", "50/30/20", "Pay-yourself-first", "6-jars", "Envelope method"],
+      ["Ngân sách ăn uống", "Ngân sách nhà cửa", "Ngân sách sức khỏe", "Ngân sách quà tặng", "Ngân sách dự phòng"],
+    ],
+  },
+  {
+    label: "Danh mục",
+    subtitle: "Nhóm chi tiêu & thu nhập rõ ràng",
+    columns: [
+      ["Danh mục cố định", "Danh mục định kỳ", "Chi tiêu linh hoạt", "Thu nhập thụ động", "Khoản đầu tư"],
+      ["Học phí", "Thuê nhà", "Điện nước", "Internet", "Xăng xe"],
+      ["Freelance", "Cổ tức", "Tiền thưởng", "Bán đồ cũ", "Affiliate"],
+    ],
+  },
+  {
+    label: "Báo cáo",
+    subtitle: "Kiểm thử sức khỏe tài chính nhanh",
+    columns: [
+      ["Báo cáo tuần", "Báo cáo tháng", "So sánh kế hoạch", "Cảnh báo vượt ngưỡng", "Dòng tiền ròng"],
+      ["Trạng thái quỹ khẩn cấp", "Tỷ lệ tiết kiệm", "Tỷ lệ nợ/thu nhập", "Hiệu suất đầu tư", "Heatmap chi tiêu"],
+      ["Top danh mục bội chi", "Xu hướng thu nhập", "Dòng tiền theo ngày", "Chu kỳ thanh toán", "Báo cáo PDF"],
+    ],
+  },
+  {
+    label: "Mẹo tiết kiệm",
+    subtitle: "Tip nhanh, thử thách ngắn và checklist",
+    columns: [
+      ["Tips tiết kiệm", "Checklist tài chính", "Thử thách 30 ngày", "Mẫu quản lý", "Tự động hoá"],
+      ["Cắt giảm subscription", "Bữa ăn 50k/ngày", "No-spend weekend", "Quỹ mini 7 ngày", "Đảo nợ 0%"],
+      ["Mẹo giảm phí thẻ", "Săn voucher", "Auto chuyển quỹ", "Đặt hạn mức chi", "Nhắc nhở hóa đơn"],
+    ],
+  },
 ];
 
 const deals = [
@@ -29,14 +67,14 @@ const deals = [
 ];
 
 const stays = [
-  { title: "Quỹ khẩn cấp", price: "Đã đạt 35.000.000đ", rating: "Tiến độ 70%", tag: "On-track" },
-  { title: "Trả nợ thẻ tín dụng", price: "Còn 12.500.000đ", rating: "Tiến độ 40%", tag: "Cần đẩy nhanh" },
-  { title: "Tiết kiệm du lịch", price: "Đã đạt 18.000.000đ", rating: "Tiến độ 60%", tag: "Ổn định" },
-  { title: "Đầu tư định kỳ", price: "Góp 5.000.000đ/tháng", rating: "Kỷ luật tốt", tag: "Thói quen" },
-  { title: "Mua xe máy", price: "Đã đạt 12.000.000đ", rating: "Tiến độ 50%", tag: "Kiên trì" },
-  { title: "Quỹ học tập", price: "Đã đạt 20.000.000đ", rating: "Tiến độ 65%", tag: "Ổn định" },
-  { title: "Cưới hỏi", price: "Đã đạt 45.000.000đ", rating: "Tiến độ 55%", tag: "Đang tích luỹ" },
-  { title: "Quỹ sức khỏe", price: "Đã đạt 25.000.000đ", rating: "Tiến độ 75%", tag: "On-track" },
+  { title: "Quỹ khẩn cấp", price: "Đã đạt 35.000.000đ", rating: "Tiến độ 70%", tag: "On-track", image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=900&q=80" },
+  { title: "Trả nợ thẻ tín dụng", price: "Còn 12.500.000đ", rating: "Tiến độ 40%", tag: "Cần đẩy nhanh", image: "https://images.unsplash.com/photo-1542728000-268c0f9bddc7?auto=format&fit=crop&w=900&q=80" },
+  { title: "Tiết kiệm du lịch", price: "Đã đạt 18.000.000đ", rating: "Tiến độ 60%", tag: "Ổn định", image: "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=900&q=80" },
+  { title: "Đầu tư định kỳ", price: "Góp 5.000.000đ/tháng", rating: "Kỷ luật tốt", tag: "Thói quen", image: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=900&q=80" },
+  { title: "Mua xe máy", price: "Đã đạt 12.000.000đ", rating: "Tiến độ 50%", tag: "Kiên trì", image: "https://images.unsplash.com/photo-1502877828070-33b167ad6860?auto=format&fit=crop&w=900&q=80" },
+  { title: "Quỹ học tập", price: "Đã đạt 20.000.000đ", rating: "Tiến độ 65%", tag: "Ổn định", image: "https://images.unsplash.com/photo-1491841651911-c44c30c34548?auto=format&fit=crop&w=900&q=80" },
+  { title: "Cưới hỏi", price: "Đã đạt 45.000.000đ", rating: "Tiến độ 55%", tag: "Đang tích luỹ", image: "https://images.unsplash.com/photo-1499084732479-de2c02d45fcc?auto=format&fit=crop&w=900&q=80" },
+  { title: "Quỹ sức khỏe", price: "Đã đạt 25.000.000đ", rating: "Tiến độ 75%", tag: "On-track", image: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=900&q=80" },
 ];
 const stayMarquee = [...stays, ...stays];
 
@@ -152,18 +190,19 @@ export default function HomePage() {
         <section id="popular" style={styles.section}>
           <h2 style={styles.sectionTitle}>Các danh mục được dùng nhiều</h2>
           <div style={styles.tabs}>
-            {tabs.map((tab, idx) => (
+            {tabSections.map((tab, idx) => (
               <button
-                key={tab}
+                key={tab.label}
                 onClick={() => setActiveTab(idx)}
                 style={{ ...styles.tab, ...(activeTab === idx ? styles.tabActive : {}) }}
               >
-                {tab}
+                {tab.label}
               </button>
             ))}
           </div>
-          <div style={styles.cityGrid}>
-            {popularCities.map((col, i) => (
+          <div style={styles.tabSubtitle}>{tabSections[activeTab].subtitle}</div>
+          <div style={{ ...styles.cityGrid, animation: "fadeIn 0.35s ease" }} key={activeTab}>
+            {tabSections[activeTab].columns.map((col, i) => (
               <div key={i} style={styles.cityCol}>
                 {col.map((city) => (
                   <div key={city} style={styles.cityItem}>{city}</div>
@@ -194,7 +233,12 @@ export default function HomePage() {
             <div style={styles.stayTrack}>
               {stayMarquee.map((stay, idx) => (
                 <div key={`${stay.title}-${idx}`} style={styles.stayCard}>
-                  <div style={styles.stayThumb} />
+                  <div
+                    style={{
+                      ...styles.stayThumb,
+                      backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.12) 10%, rgba(11,16,33,0.72) 70%), url(${stay.image})`,
+                    }}
+                  />
                   <div style={styles.stayBody}>
                     <div style={styles.stayTitle}>{stay.title}</div>
                     <div style={styles.stayTag}>{stay.tag} • {stay.rating}</div>
@@ -378,9 +422,10 @@ const styles = {
     color: "#ffffff",
     boxShadow: "0 12px 28px rgba(14,165,233,0.25)",
   },
+  tabSubtitle: { marginBottom: 14, color: palette.muted, fontSize: 14 },
   cityGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 },
-  cityCol: { display: "grid", gap: 8, color: palette.muted },
-  cityItem: { fontSize: 14 },
+  cityCol: { display: "grid", gap: 8, color: palette.muted, padding: "8px 10px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: `1px solid ${palette.border}` },
+  cityItem: { fontSize: 14, fontWeight: 600, color: palette.text, padding: "8px 10px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: `1px solid ${palette.border}`, boxShadow: "0 10px 24px rgba(0,0,0,0.25)" },
   dealsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 },
   dealCard: {
     padding: 14,
@@ -427,7 +472,12 @@ const styles = {
     overflow: "hidden",
     minWidth: 240,
   },
-  stayThumb: { height: 140, background: "linear-gradient(135deg, #2563eb, #22c1c3)" },
+  stayThumb: {
+    height: 140,
+    background: "linear-gradient(135deg, #2563eb, #22c1c3)",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  },
   stayBody: { padding: 12, display: "grid", gap: 6 },
   stayTitle: { fontWeight: 800, fontSize: 15, color: palette.text },
   stayTag: { color: palette.muted, fontSize: 13 },
@@ -474,6 +524,11 @@ const marqueeStyle = `
 .cf-grid line {
   stroke: rgba(148,163,184,0.14);
   stroke-width: 1;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 `;
 
