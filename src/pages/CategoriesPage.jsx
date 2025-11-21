@@ -16,6 +16,8 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
     type: "expense",
@@ -32,6 +34,7 @@ export default function CategoriesPage() {
       const data = await apiGetCategories();
       // data chính là mảng danh sách, lấy trực tiếp luôn
       setCategories(Array.isArray(data) ? data : []); 
+      setSelectedIds([]);
     } catch (err) {
       console.error(err);
     }
@@ -97,6 +100,47 @@ export default function CategoriesPage() {
     }
   }
 
+  function toggleSelect(id) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  const hasSelection = selectedIds.length > 0;
+
+  async function handleDeleteSelected() {
+    if (!hasSelection) return;
+    if (!window.confirm(`Xoá ${selectedIds.length} danh mục đã chọn?`)) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(selectedIds.map((id) => apiDeleteCategory(id).catch(() => null)));
+      await fetchCategories();
+    } catch (err) {
+      alert(err.message || "Không thể xoá danh mục đã chọn");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  async function handleDeleteAll() {
+    if (categories.length === 0) return;
+    if (
+      !window.confirm(
+        "Bạn chắc chắn xoá toàn bộ danh mục? Các giao dịch sẽ bị mất liên kết danh mục."
+      )
+    )
+      return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(categories.map((c) => apiDeleteCategory(c._id).catch(() => null)));
+      await fetchCategories();
+    } catch (err) {
+      alert(err.message || "Không thể xoá toàn bộ danh mục");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
   const incomeCats = categories.filter((c) => c.type === "income");
   const expenseCats = categories.filter((c) => c.type === "expense");
 
@@ -108,7 +152,15 @@ export default function CategoriesPage() {
           <h1 style={styles.title}>Categories</h1>
           <p style={styles.lead}>Tổ chức thu/chi rõ ràng để báo cáo mượt mà.</p>
         </div>
-        <Button onClick={openCreateModal}>Thêm danh mục</Button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Button variant="subtle" onClick={handleDeleteSelected} disabled={!hasSelection || bulkLoading}>
+            <Icon name="trash" tone="red" size={16} background={false} /> Xoá đã chọn
+          </Button>
+          <Button variant="ghost" onClick={handleDeleteAll} disabled={categories.length === 0 || bulkLoading}>
+            <Icon name="trash" tone="red" size={16} /> Xoá toàn bộ
+          </Button>
+          <Button onClick={openCreateModal}>Thêm danh mục</Button>
+        </div>
       </div>
 
       <div style={styles.gridTwo}>
@@ -120,6 +172,8 @@ export default function CategoriesPage() {
                 category={c}
                 onEdit={() => openEditModal(c)}
                 onDelete={() => handleDelete(c)}
+                selected={selectedIds.includes(c._id)}
+                onToggleSelect={() => toggleSelect(c._id)}
               />
             ))}
             {incomeCats.length === 0 && <p style={styles.emptyText}>Chưa có danh mục thu nhập</p>}
@@ -134,6 +188,8 @@ export default function CategoriesPage() {
                 category={c}
                 onEdit={() => openEditModal(c)}
                 onDelete={() => handleDelete(c)}
+                selected={selectedIds.includes(c._id)}
+                onToggleSelect={() => toggleSelect(c._id)}
               />
             ))}
             {expenseCats.length === 0 && <p style={styles.emptyText}>Chưa có danh mục chi tiêu</p>}
@@ -187,10 +243,13 @@ export default function CategoriesPage() {
   );
 }
 
-function CategoryCard({ category, onEdit, onDelete }) {
+function CategoryCard({ category, onEdit, onDelete, selected, onToggleSelect }) {
   return (
-    <div style={styles.catCard}>
+    <div style={{ ...styles.catCard, ...(selected ? styles.catCardSelected : {}) }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+        <button style={{ ...styles.check, ...(selected ? styles.checkActive : {}) }} onClick={onToggleSelect} aria-label="Chọn danh mục">
+          {selected && <Icon name="check" tone="green" size={14} background={false} />}
+        </button>
         <div style={styles.catIcon}>
           {renderCategoryIcon(category)}
         </div>
@@ -221,11 +280,31 @@ function CategoryCard({ category, onEdit, onDelete }) {
   );
 }
 
+const builtInIconNames = new Set([
+  "wallet",
+  "award",
+  "chart",
+  "bag",
+  "spark",
+  "home",
+  "article",
+  "tool",
+  "link",
+  "arrowUpRight",
+  "arrowDown",
+]);
+
 function renderCategoryIcon(category) {
   const tone = category.type === "income" ? "green" : "amber";
+  const iconVal = category.icon && category.icon.trim();
 
-  if (category.icon && category.icon.trim()) {
-    return <span style={styles.customIcon}>{category.icon.trim()}</span>;
+  if (iconVal && builtInIconNames.has(iconVal)) {
+    return <Icon name={iconVal} tone={tone} size={20} background={false} />;
+  }
+
+  if (iconVal) {
+    // Nếu người dùng nhập ký hiệu riêng, giữ nguyên để không phá dữ liệu cũ
+    return <span style={styles.customIcon}>{iconVal}</span>;
   }
 
   return <Icon name={category.type === "income" ? "arrowUpRight" : "arrowDown"} tone={tone} size={20} background={false} />;
@@ -265,6 +344,26 @@ const styles = {
     flexDirection: "column",
     minHeight: 96,
     border: "1px solid rgba(148,163,184,0.15)",
+  },
+  catCardSelected: {
+    border: "1px solid rgba(34,197,94,0.5)",
+    boxShadow: "0 12px 28px rgba(34,197,94,0.18)",
+  },
+  check: {
+    width: 26,
+    height: 26,
+    borderRadius: 10,
+    border: "1px solid rgba(148,163,184,0.3)",
+    background: "rgba(226,232,240,0.04)",
+    display: "grid",
+    placeItems: "center",
+    marginRight: 8,
+    cursor: "pointer",
+    color: "var(--text-muted)",
+  },
+  checkActive: {
+    border: "1px solid rgba(34,197,94,0.6)",
+    background: "rgba(34,197,94,0.16)",
   },
   catIcon: {
     width: 36,
