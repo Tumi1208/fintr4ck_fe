@@ -4,6 +4,7 @@ import { authApiHelpers } from "../api/auth";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
 import Icon from "../components/ui/Icon";
+import PageTransition from "../components/PageTransition";
 
 const bgImage =
   "https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=1800&q=80";
@@ -48,7 +49,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div style={styles.shell}>
+    <PageTransition style={styles.shell}>
       <div style={styles.backdrop} />
       <div style={styles.bgImage} />
       <div style={styles.overlayGradient} />
@@ -119,7 +120,7 @@ export default function ForgotPasswordPage() {
           )}
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }
 

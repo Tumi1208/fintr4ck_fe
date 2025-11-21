@@ -1,5 +1,6 @@
 // src/pages/ResourcesPage.jsx
 import React from "react";
+import PageTransition from "../components/PageTransition";
 import Card from "../components/ui/Card";
 import Icon from "../components/ui/Icon";
 
@@ -54,7 +55,7 @@ export default function ResourcesPage() {
   }
 
   return (
-    <div>
+    <PageTransition>
       <div style={styles.titleRow}>
         <Icon name="book" tone="brand" size={26} />
         <h1 style={styles.pageTitle}>Góc Kiến Thức Tài Chính</h1>
@@ -62,8 +63,8 @@ export default function ResourcesPage() {
       <p style={styles.subTitle}>Tổng hợp nguồn uy tín giúp bạn nâng cao tư duy tài chính.</p>
 
       <div style={styles.grid}>
-        {resources.map((item) => (
-          <Card key={item.id} style={styles.card}>
+        {resources.map((item, idx) => (
+          <Card key={item.id} style={styles.card} animate custom={idx}>
             <a href={item.link} target="_blank" rel="noreferrer" style={styles.anchor}>
               <div style={styles.thumbWrapper}>
                 <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
@@ -94,7 +95,7 @@ export default function ResourcesPage() {
           </Card>
         ))}
       </div>
-    </div>
+    </PageTransition>
   );
 }
 

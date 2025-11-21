@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { authApiHelpers } from "../api/auth";
 import StreakBadge from "../components/StreakBadge";
+import PageTransition from "../components/PageTransition";
 
 const { API_BASE, getAuthHeaders } = authApiHelpers;
 
@@ -99,7 +100,7 @@ export default function MyChallengesPage() {
   }
 
   return (
-    <div style={styles.container}>
+    <PageTransition style={styles.container}>
       <div style={styles.header}>
         <div>
           <p style={styles.kicker}>Challenge</p>
@@ -122,13 +123,61 @@ export default function MyChallengesPage() {
 
         {items.map((item) => {
           const duration = item.challenge?.durationDays || 1;
-          const progress = Math.min(100, Math.round(((item.completedDays || 0) / duration) * 100));
+          const completed = item.completedDays ?? item.currentStreak ?? 0;
+          const progress = Math.min(100, Math.round((completed / duration) * 100));
+          const milestones = [
+            { key: "bronze", label: "Bronze Spark", percent: 25 },
+            { key: "silver", label: "Silver Flow", percent: 50 },
+            { key: "gold", label: "Gold Peak", percent: 75 },
+            { key: "finish", label: "Hoàn thành", percent: 100 },
+          ];
+          const reachedMilestone = milestones.reduce(
+            (curr, m) => (progress >= m.percent ? m : curr),
+            { key: "start", label: "Bắt đầu", percent: 0 },
+          );
+          const tiers = [{ key: "start", label: "Bắt đầu", percent: 0 }, ...milestones];
           return (
             <div key={item._id} style={styles.tableRow}>
               <div style={styles.colWide}>
                 <div style={styles.cardTitle}>{item.challenge?.title || "Challenge"}</div>
                 <div style={styles.mutedSmall}>
-                  {item.completedDays || 0}/{duration} ngày · Streak: {item.currentStreak}
+                  {completed}/{duration} ngày · Streak: {item.currentStreak}
+                </div>
+
+                <div style={styles.roadmapContainer}>
+                  <div style={styles.roadmapHeader}>
+                    <span style={styles.timelineTitle}>Lộ trình thành tích</span>
+                    <span style={styles.timelineMeta}>{progress}% hoàn thành</span>
+                  </div>
+                  <div style={styles.roadmapTrack} aria-hidden>
+                    <div style={{ ...styles.roadmapProgress, width: `${progress}%` }} />
+                    {tiers.map((m) => (
+                      <div
+                        key={m.key}
+                        style={{
+                          ...styles.roadmapDot,
+                          left: `${m.percent}%`,
+                          background: progress >= m.percent ? "#22c55e" : "#0ea5e9",
+                        }}
+                      />
+                    ))}
+                    <div style={styles.labelsRow}>
+                      {tiers.map((m) => (
+                        <div key={m.key} style={{ ...styles.labelFloating, left: `${m.percent}%` }}>
+                          <div
+                            style={{
+                              ...styles.labelPill,
+                              background: progress >= m.percent ? "rgba(34,197,94,0.18)" : "rgba(79,70,229,0.18)",
+                              color: progress >= m.percent ? "#bbf7d0" : "#c7d2fe",
+                            }}
+                          >
+                            {m.label}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <span style={styles.srOnly}>Bạn đang ở {progress}% lộ trình</span>
                 </div>
               </div>
 
@@ -168,7 +217,7 @@ export default function MyChallengesPage() {
         </div>
         {!loading && items.length === 0 && <div style={styles.info}>Bạn chưa tham gia challenge nào.</div>}
       </div>
-    </div>
+    </PageTransition>
   );
 }
 
@@ -203,12 +252,17 @@ const styles = {
     fontSize: 12,
     border: "1px solid rgba(148,163,184,0.2)",
   },
-  progressBar: {
-    display: "none",
+  roadmapContainer: {
+    marginTop: 10,
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid rgba(148,163,184,0.08)",
+    position: "relative",
   },
-  progressFill: {
-    display: "none",
-  },
+  roadmapHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" },
+  timelineTitle: { fontSize: 13, fontWeight: 800, color: "var(--text-strong)" },
+  timelineMeta: { fontSize: 12, fontWeight: 700, color: "#a5b4fc" },
   checkBtn: {
     padding: "10px 12px",
     borderRadius: 10,
@@ -229,17 +283,7 @@ const styles = {
     cursor: "pointer",
     width: "100%",
   },
-  roadmapTrack: {
-    position: "relative",
-    marginTop: 8,
-    marginBottom: 16,
-    height: 12,
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.12)",
-    overflow: "hidden",
-    border: "1px solid rgba(0,0,0,0.35)",
-    zIndex: 2,
-  },
+  roadmapTrack: { position: "relative", marginTop: 8, marginBottom: 16, height: 14, borderRadius: 999, background: "rgba(255,255,255,0.08)", overflow: "visible", border: "1px solid rgba(0,0,0,0.35)", zIndex: 2 },
   roadmapProgress: {
     position: "absolute",
     left: 0,
@@ -247,6 +291,7 @@ const styles = {
     bottom: 0,
     background: "linear-gradient(90deg, rgba(99,102,241,0.9), rgba(16,185,129,0.9))",
     borderRadius: 999,
+    boxShadow: "0 0 14px rgba(14,165,233,0.45)",
   },
   roadmapDot: {
     position: "absolute",
@@ -264,15 +309,24 @@ const styles = {
   },
   pointer: {
     position: "absolute",
-    top: -26,
+    top: -30,
     transform: "translateX(-50%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 3,
   },
-  pointerArrow: { fontSize: 16, color: "#fbbf24", lineHeight: 1 },
-  pointerText: { display: "none" },
+  pointerArrow: { fontSize: 16, color: "#fbbf24", lineHeight: 1, textShadow: "0 0 8px rgba(251,191,36,0.35)" },
+  pointerText: {
+    marginLeft: 6,
+    fontSize: 11,
+    color: "#fef3c7",
+    padding: "6px 10px",
+    borderRadius: 999,
+    background: "rgba(12,15,28,0.92)",
+    border: "1px solid rgba(148,163,184,0.25)",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.35)",
+  },
   info: { color: "var(--text-muted)", fontSize: 14 },
   error: { color: "#fca5a5", fontSize: 14 },
   labelsRow: {
@@ -290,7 +344,13 @@ const styles = {
     textAlign: "center",
     whiteSpace: "nowrap",
   },
-  labelPill: { display: "none" },
+  labelPill: {
+    display: "inline-block",
+    padding: "4px 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(148,163,184,0.16)",
+    backdropFilter: "blur(10px)",
+  },
   srOnly: {
     position: "absolute",
     width: 1,

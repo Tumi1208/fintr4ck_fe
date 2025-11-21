@@ -1,7 +1,5 @@
 // src/pages/DashboardPage.jsx
 import { useEffect, useMemo, useState } from "react";
-// eslint-disable-next-line
-import { motion } from "framer-motion";
 import { apiGetSummary, apiCreateTransaction } from "../api/transactions";
 import { apiGetCategories } from "../api/categories";
 import { apiGetExpenseBreakdown } from "../api/reports";
@@ -13,7 +11,8 @@ import Card from "../components/ui/Card";
 import InputField from "../components/ui/InputField";
 import Badge from "../components/ui/Badge";
 import Icon from "../components/ui/Icon";
-import { pageVariants, cardVariants, globalStyles } from "../utils/animations";
+import PageTransition from "../components/PageTransition";
+import { globalStyles } from "../utils/animations";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -72,6 +71,7 @@ export default function DashboardPage() {
   const [quickError, setQuickError] = useState("");
   const [chartType, setChartType] = useState("bar");
   const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * quotes.length));
+  const [isNarrow, setIsNarrow] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 1100 : true));
 
   async function fetchAllData() {
     try {
@@ -88,6 +88,14 @@ export default function DashboardPage() {
   useEffect(() => {
     setLoading(true);
     fetchAllData().finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsNarrow(window.innerWidth < 1100);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const chartData = useMemo(() => {
@@ -161,7 +169,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
+    <PageTransition style={styles.page}>
       <div style={styles.pageHead}>
         <div>
           <p style={styles.kicker}>Tổng quan tài chính</p>
@@ -179,197 +187,191 @@ export default function DashboardPage() {
       {loading ? (
         <p style={{ color: "var(--text-muted)" }}>Đang tải dữ liệu...</p>
       ) : (
-        <>
-          <div style={styles.row}>
-            <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible" style={{ flex: 1 }}>
-              <Card title="Tổng số dư" style={styles.card}>
-                <div style={styles.balanceRow}>
-                  <div>
-                    <div style={styles.balanceValue}>${balance.toLocaleString("en-US")}</div>
-                    <div style={styles.balanceHint}>Tổng cộng sau mọi giao dịch</div>
-                  </div>
-                  <div style={styles.badgeStack}>
-                    <Badge tone="success">Thu nhập +${totalIncome.toLocaleString("en-US")}</Badge>
-                    <Badge tone="danger">Chi tiêu -${totalExpense.toLocaleString("en-US")}</Badge>
-                  </div>
-                </div>
-                <div style={styles.quoteBox}>
-                  <div>
-                    <div style={styles.quoteLabel}>{activeQuote.author}</div>
-                    <div style={styles.quoteText}>“{activeQuote.text}”</div>
-                  </div>
-                  <button type="button" style={styles.quoteBtn} onClick={shuffleQuote}>
-                    <Icon name="spark" tone="blue" size={16} background={false} /> Quote khác
+        <div style={{ ...styles.grid, gridTemplateColumns: isNarrow ? "1fr" : "repeat(2, minmax(0, 1fr))" }}>
+          <Card animate custom={0} title="Tổng số dư" style={{ ...styles.card, ...styles.tallCard }}>
+            <div style={styles.balanceRow}>
+              <div>
+                <div style={styles.balanceValue}>${balance.toLocaleString("en-US")}</div>
+                <div style={styles.balanceHint}>Tổng cộng sau mọi giao dịch</div>
+              </div>
+              <div style={styles.badgeStack}>
+                <Badge tone="success">Thu nhập +${totalIncome.toLocaleString("en-US")}</Badge>
+                <Badge tone="danger">Chi tiêu -${totalExpense.toLocaleString("en-US")}</Badge>
+              </div>
+            </div>
+            <div style={styles.quoteBox}>
+              <div>
+                <div style={styles.quoteLabel}>{activeQuote.author}</div>
+                <div style={styles.quoteText}>“{activeQuote.text}”</div>
+              </div>
+              <button type="button" style={styles.quoteBtn} onClick={shuffleQuote}>
+                <Icon name="spark" tone="blue" size={16} background={false} /> Quote khác
+              </button>
+            </div>
+          </Card>
+
+          <Card animate custom={1} title="Cơ cấu chi tiêu" style={{ ...styles.card, ...styles.tallCard }}>
+            <div style={styles.chartToggle}>
+              <span style={styles.toggleLabel}>Loại biểu đồ:</span>
+              <div style={styles.toggleGroup}>
+                {["bar", "doughnut"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setChartType(type)}
+                    style={{
+                      ...styles.toggleBtn,
+                      ...(chartType === type ? styles.toggleBtnActive : {}),
+                    }}
+                    type="button"
+                  >
+                    {type === "bar" ? "Cột ngang" : "Doughnut"}
                   </button>
-                </div>
-              </Card>
-            </motion.div>
-
-            <motion.div custom={1} variants={cardVariants} initial="hidden" animate="visible" style={{ flex: 1.4 }}>
-              <Card title="Cơ cấu chi tiêu" style={styles.card}>
-                <div style={styles.chartToggle}>
-                  <span style={styles.toggleLabel}>Loại biểu đồ:</span>
-                  <div style={styles.toggleGroup}>
-                    {["bar", "doughnut"].map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setChartType(type)}
-                        style={{
-                          ...styles.toggleBtn,
-                          ...(chartType === type ? styles.toggleBtnActive : {}),
-                        }}
-                        type="button"
-                      >
-                        {type === "bar" ? "Cột ngang" : "Doughnut"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {chartData ? (
-                  <div style={chartType === "doughnut" ? styles.doughnutBox : styles.chartWrap}>
-                    {chartType === "bar" ? (
-                      <Bar
-                        data={chartData}
-                        options={{
-                          indexAxis: "y",
-                          responsive: true,
-                          plugins: { legend: { display: false } },
-                          scales: {
-                            x: {
-                              grid: { color: "rgba(148,163,184,0.2)" },
-                              ticks: { color: "#e2e8f0" },
-                            },
-                            y: {
-                              grid: { display: false },
-                              ticks: { color: "#e2e8f0", font: { weight: "700" } },
-                            },
-                          },
-                          plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                              titleColor: "#e2e8f0",
-                              bodyColor: "#e2e8f0",
-                              backgroundColor: "rgba(15,23,42,0.9)",
-                              borderColor: "rgba(148,163,184,0.3)",
-                              borderWidth: 1,
-                            },
-                          },
-                        }}
-                      />
-                    ) : (
-                      <Doughnut
-                        data={chartData}
-                        options={{
-                          maintainAspectRatio: false,
-                          plugins: {
-                            legend: {
-                              labels: { color: "#e2e8f0", font: { weight: 600 } },
-                              position: "bottom",
-                            },
-                            tooltip: {
-                              titleColor: "#e2e8f0",
-                              bodyColor: "#e2e8f0",
-                              backgroundColor: "rgba(15,23,42,0.9)",
-                              borderColor: "rgba(148,163,184,0.3)",
-                              borderWidth: 1,
-                            },
-                          },
-                          cutout: "60%",
-                        }}
-                      />
-                    )}
-                  </div>
+                ))}
+              </div>
+            </div>
+            {chartData ? (
+              <div style={chartType === "doughnut" ? styles.doughnutBox : styles.chartWrap}>
+                {chartType === "bar" ? (
+                  <Bar
+                    data={chartData}
+                    options={{
+                      indexAxis: "y",
+                      responsive: true,
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                          titleColor: "#e2e8f0",
+                          bodyColor: "#e2e8f0",
+                          backgroundColor: "rgba(15,23,42,0.9)",
+                          borderColor: "rgba(148,163,184,0.3)",
+                          borderWidth: 1,
+                        },
+                      },
+                      scales: {
+                        x: {
+                          grid: { color: "rgba(148,163,184,0.2)" },
+                          ticks: { color: "#e2e8f0" },
+                        },
+                        y: {
+                          grid: { display: false },
+                          ticks: { color: "#e2e8f0", font: { weight: "700" } },
+                        },
+                      },
+                    }}
+                  />
                 ) : (
-                  <p style={{ color: "var(--text-muted)" }}>Chưa có dữ liệu.</p>
+                  <Doughnut
+                    data={chartData}
+                    options={{
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          labels: { color: "#e2e8f0", font: { weight: 600 } },
+                          position: "bottom",
+                        },
+                        tooltip: {
+                          titleColor: "#e2e8f0",
+                          bodyColor: "#e2e8f0",
+                          backgroundColor: "rgba(15,23,42,0.9)",
+                          borderColor: "rgba(148,163,184,0.3)",
+                          borderWidth: 1,
+                        },
+                      },
+                      cutout: "60%",
+                    }}
+                  />
                 )}
-              </Card>
-            </motion.div>
-          </div>
+              </div>
+            ) : (
+              <p style={{ color: "var(--text-muted)" }}>Chưa có dữ liệu.</p>
+            )}
+          </Card>
 
-          <div style={styles.row}>
-            <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible" style={{ flex: 1 }}>
-              <Card title="⚡ Ghi nhanh giao dịch" style={styles.card}>
-                <form onSubmit={handleQuickAdd} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
-                  <div style={{ display: "flex", gap: 10 }}>
-                    <select
-                      style={styles.select}
-                      value={quickForm.type}
-                      onChange={(e) => setQuickForm({ ...quickForm, type: e.target.value })}
-                    >
-                      <option value="expense">Chi tiêu</option>
-                      <option value="income">Thu nhập</option>
-                    </select>
-                    <select
-                      style={styles.select}
-                      value={quickForm.categoryId}
-                      onChange={(e) => setQuickForm({ ...quickForm, categoryId: e.target.value })}
-                    >
-                      <option value="">Chọn danh mục</option>
-                      {categories.map((c) => (
-                        <option key={c._id} value={c._id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <InputField
-                    placeholder="Ghi chú"
-                    value={quickForm.note}
-                    onChange={(e) => setQuickForm({ ...quickForm, note: e.target.value })}
-                  />
-                  <InputField
-                    type="number"
-                    placeholder="Số tiền"
-                    value={quickForm.amount}
-                    onChange={(e) => setQuickForm({ ...quickForm, amount: e.target.value })}
-                  />
-                  {quickError && <p style={{ color: "#fca5a5", fontSize: 13 }}>{quickError}</p>}
-                  <Button type="submit" fullWidth>
-                    Thêm ngay
-                  </Button>
-                </form>
-              </Card>
-            </motion.div>
-
-            <motion.div custom={3} variants={cardVariants} initial="hidden" animate="visible" style={{ flex: 1.5 }}>
-              <Card title="Giao dịch gần đây" style={styles.card}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
-                  {recent.map((t) => (
-                    <div key={t._id} style={styles.transactionRow}>
-                      <div style={styles.iconBox}>
-                        {renderTxnIcon(t)}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>
-                          {t.category?.name || "Uncategorized"}
-                        </div>
-                        <div style={{ fontSize: 12, color: styles.lead.color }}>
-                          {new Date(t.date).toLocaleDateString()} • {t.note}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          fontWeight: 800,
-                          color: t.type === "income" ? "#4ade80" : "#f87171",
-                        }}
-                      >
-                        {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
-                      </div>
-                    </div>
+          <Card animate custom={2} title="⚡ Ghi nhanh giao dịch" style={{ ...styles.card, ...styles.wideCard }}>
+            <form onSubmit={handleQuickAdd} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
+              <div style={styles.formRow}>
+                <select
+                  style={styles.select}
+                  value={quickForm.type}
+                  onChange={(e) => setQuickForm({ ...quickForm, type: e.target.value })}
+                >
+                  <option value="expense">Chi tiêu</option>
+                  <option value="income">Thu nhập</option>
+                </select>
+                <select
+                  style={styles.select}
+                  value={quickForm.categoryId}
+                  onChange={(e) => setQuickForm({ ...quickForm, categoryId: e.target.value })}
+                >
+                  <option value="">Chọn danh mục</option>
+                  {categories.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
                   ))}
-                  {recent.length === 0 && <p style={{ color: "var(--text-muted)" }}>Chưa có giao dịch gần đây</p>}
+                </select>
+              </div>
+
+              <InputField
+                placeholder="Ghi chú"
+                value={quickForm.note}
+                onChange={(e) => setQuickForm({ ...quickForm, note: e.target.value })}
+              />
+              <InputField
+                type="number"
+                placeholder="Số tiền"
+                value={quickForm.amount}
+                onChange={(e) => setQuickForm({ ...quickForm, amount: e.target.value })}
+              />
+              {quickError && <p style={{ color: "#fca5a5", fontSize: 13 }}>{quickError}</p>}
+              <Button type="submit" fullWidth>
+                Thêm ngay
+              </Button>
+            </form>
+          </Card>
+
+          <Card animate custom={3} title="Giao dịch gần đây" style={{ ...styles.card, ...styles.wideCard }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
+              {recent.map((t) => (
+                <div key={t._id} style={styles.transactionRow}>
+                  <div style={styles.iconBox}>
+                    {renderTxnIcon(t)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>
+                      {t.category?.name || "Uncategorized"}
+                    </div>
+                    <div style={{ fontSize: 12, color: styles.lead.color }}>
+                      {new Date(t.date).toLocaleDateString()} • {t.note}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      color: t.type === "income" ? "#4ade80" : "#f87171",
+                    }}
+                  >
+                    {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
+                  </div>
                 </div>
-              </Card>
-            </motion.div>
-          </div>
-        </>
+              ))}
+              {recent.length === 0 && <p style={{ color: "var(--text-muted)" }}>Chưa có giao dịch gần đây</p>}
+            </div>
+          </Card>
+        </div>
       )}
-    </motion.div>
+    </PageTransition>
   );
 }
 
 const styles = {
+  page: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
+    maxWidth: 1180,
+    margin: "0 auto",
+  },
   pageHead: {
     display: "flex",
     alignItems: "center",
@@ -391,12 +393,19 @@ const styles = {
   heading: { margin: "8px 0 6px", color: "var(--text-strong)", fontSize: 28, letterSpacing: -0.4 },
   subHeading: { display: "inline-block", marginLeft: 10, color: "var(--text-muted)", fontSize: 16, fontWeight: 500 },
   lead: { margin: 0, color: "#e2e8f0", fontSize: 14 },
-  row: { display: "flex", gap: 16, marginBottom: 18, alignItems: "stretch" },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 16,
+    alignItems: "stretch",
+  },
   card: { height: "100%" },
-  balanceRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  tallCard: { minHeight: 320 },
+  wideCard: { minHeight: 260 },
+  balanceRow: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" },
   balanceValue: { fontSize: 38, fontWeight: 800, background: globalStyles.gradientBg, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 },
   balanceHint: { color: "var(--text-muted)", fontSize: 13 },
-  badgeStack: { display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" },
+  badgeStack: { display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" },
   quoteBox: {
     marginTop: 14,
     padding: "12px 14px",
@@ -449,8 +458,10 @@ const styles = {
     background: "linear-gradient(135deg, rgba(59,130,246,0.22), rgba(34,197,94,0.22))",
     color: "var(--text-strong)",
   },
+  formRow: { display: "flex", gap: 10, flexWrap: "wrap" },
   select: {
     flex: 1,
+    minWidth: 180,
     padding: "12px 14px",
     borderRadius: "var(--radius-md)",
     border: "1px solid rgba(148,163,184,0.25)",

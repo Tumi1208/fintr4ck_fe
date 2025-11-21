@@ -1,8 +1,9 @@
 // src/components/Layout.jsx
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { pageVariants } from "../utils/animations";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import ChatbotWidget from "./ChatbotWidget";
+import PageTransition from "./PageTransition";
 import Icon from "./ui/Icon";
 
 const palette = {
@@ -23,11 +24,43 @@ const navItems = [
   { to: "/app/my-challenges", label: "My Challenges", icon: "checkBadge", tone: "green" },
   { to: "/app/templates", label: "Templates", icon: "clipboard", tone: "slate" },
   { to: "/app/resources", label: "Resources", icon: "book", tone: "brand" },
-  { to: "/app/settings", label: "Cài đặt", icon: "gear", tone: "slate" },
+  { to: "/app/settings", label: "Settings", icon: "gear", tone: "slate" },
 ];
 
 export default function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const sidebarRef = useRef(null);
+  const navRefs = useRef({});
+  const [ripple, setRipple] = useState(null);
+  const MotionSpan = motion.span;
+  const MotionDiv = motion.div;
+
+  useEffect(() => {
+    const sidebarEl = sidebarRef.current;
+    if (!sidebarEl) return;
+
+    const activeItem = navItems.find((item) =>
+      item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to)
+    );
+    const targetEl = activeItem ? navRefs.current[activeItem.to] : null;
+    const sidebarRect = sidebarEl.getBoundingClientRect();
+    const { x, y } = targetEl
+      ? (() => {
+          const rect = targetEl.getBoundingClientRect();
+          return {
+            x: rect.left - sidebarRect.left + rect.width / 2,
+            y: rect.top - sidebarRect.top + rect.height / 2,
+          };
+        })()
+      : { x: sidebarRect.width / 2, y: 60 };
+
+    setRipple({
+      x,
+      y,
+      key: `${location.pathname}-${Date.now()}`,
+    });
+  }, [location.pathname]);
 
   function handleLogout() {
     localStorage.removeItem("fintr4ck_token");
@@ -37,7 +70,19 @@ export default function Layout() {
   return (
     <div style={styles.shell}>
       <div style={styles.backdrop} />
-      <aside style={styles.sidebar}>
+      <aside style={styles.sidebar} ref={sidebarRef}>
+        <AnimatePresence>
+          {ripple && (
+            <MotionSpan
+              key={ripple.key}
+              style={{ ...styles.ripple, top: ripple.y, left: ripple.x }}
+              initial={{ opacity: 0.28, scale: 0.2 }}
+              animate={{ opacity: 0.12, scale: 1.35 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.72, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
         <div style={styles.sideLogo}>
           <img src="/logo.svg" alt="Fintr4ck" style={styles.logoImg} />
           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -46,41 +91,51 @@ export default function Layout() {
           </div>
         </div>
 
-        <nav style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 8 }}>
+        <nav style={styles.navList}>
           {navItems.map((item) => (
-            <NavLink
+            <div
               key={item.to}
-              to={item.to}
-              end={item.exact}
-              style={({ isActive }) => ({
-                ...styles.navItem,
-                background: isActive
-                  ? palette.primary
-                  : "linear-gradient(140deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03))",
-                color: isActive ? "#0b1021" : palette.text,
-                border: isActive ? "1px solid rgba(124,58,237,0.35)" : `1px solid ${palette.border}`,
-                boxShadow: isActive ? "0 12px 32px rgba(14,165,233,0.32)" : "0 10px 24px rgba(0,0,0,0.2)",
-              })}
-            >
-              {({ isActive }) => {
-                const iconStyle = {
-                  ...styles.navIconWrap,
-                  ...(isActive ? styles.navIconActive : {}),
-                  ...(item.icon === "puzzle" && isActive ? styles.puzzleGlow : {}),
-                };
-                return (
-                  <>
-                    {isActive && <span style={styles.navGlow} />}
-                    <span style={iconStyle}>
-                      <Icon name={item.icon} tone={item.tone || "brand"} size={18} />
-                    </span>
-                    <span style={{ ...styles.navLabel, color: isActive ? "#0b1021" : palette.text }}>
-                      {item.label}
-                    </span>
-                  </>
-                );
+              style={styles.navItemWrap}
+              ref={(el) => {
+                if (el) navRefs.current[item.to] = el;
               }}
-            </NavLink>
+            >
+              <NavLink
+                to={item.to}
+                end={item.exact}
+                style={({ isActive }) => ({
+                  ...styles.navItem,
+                  color: isActive ? "#0b1021" : palette.text,
+                  border: isActive ? "1px solid rgba(124,58,237,0.35)" : `1px solid ${palette.border}`,
+                  boxShadow: isActive ? "0 12px 32px rgba(14,165,233,0.32)" : "0 10px 24px rgba(0,0,0,0.2)",
+                })}
+              >
+                {({ isActive }) => {
+                  const iconStyle = {
+                    ...styles.navIconWrap,
+                    ...(isActive ? styles.navIconActive : {}),
+                    ...(item.icon === "puzzle" && isActive ? styles.puzzleGlow : {}),
+                  };
+                  return (
+                    <>
+                      {isActive && (
+                        <MotionDiv
+                          layoutId="navActiveBg"
+                          style={styles.navActiveBg}
+                          transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                        />
+                      )}
+                      <span style={iconStyle}>
+                        <Icon name={item.icon} tone={item.tone || "brand"} size={18} />
+                      </span>
+                      <span style={{ ...styles.navLabel, color: isActive ? "#0b1021" : palette.text }}>
+                        {item.label}
+                      </span>
+                    </>
+                  );
+                }}
+              </NavLink>
+            </div>
           ))}
         </nav>
         <div style={{ marginTop: "auto" }}>
@@ -91,15 +146,9 @@ export default function Layout() {
       </aside>
 
       <main style={styles.main}>
-        <motion.div
-          style={styles.mainInner}
-          variants={pageVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-        >
+        <PageTransition key={location.pathname} style={styles.mainInner}>
           <Outlet />
-        </motion.div>
+        </PageTransition>
       </main>
 
       <ChatbotWidget />
@@ -135,6 +184,19 @@ const styles = {
     flexDirection: "column",
     zIndex: 1,
     boxShadow: "0 16px 42px rgba(0,0,0,0.35)",
+    overflow: "hidden",
+    isolation: "isolate",
+  },
+  navList: {
+    marginTop: 28,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    position: "relative",
+    zIndex: 1,
+  },
+  navItemWrap: {
+    position: "relative",
   },
   sideLogo: {
     display: "flex",
@@ -165,6 +227,15 @@ const styles = {
     gap: 12,
     position: "relative",
     overflow: "hidden",
+    background: "linear-gradient(140deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
+  },
+  navActiveBg: {
+    position: "absolute",
+    inset: -3,
+    borderRadius: 999,
+    background: "linear-gradient(135deg, rgba(124,58,237,0.92), rgba(14,165,233,0.92))",
+    boxShadow: "0 14px 38px rgba(14,165,233,0.32)",
+    zIndex: 0,
   },
   navIconWrap: {
     width: 34,
@@ -195,6 +266,18 @@ const styles = {
     inset: -6,
     background: "radial-gradient(circle at 10% 30%, rgba(124,58,237,0.24), transparent 45%)",
     filter: "blur(12px)",
+    pointerEvents: "none",
+    zIndex: 0,
+  },
+  ripple: {
+    position: "absolute",
+    width: 360,
+    height: 360,
+    borderRadius: "50%",
+    background:
+      "radial-gradient(circle at center, rgba(124,58,237,0.34), rgba(14,165,233,0.2), transparent 68%)",
+    filter: "blur(20px)",
+    transform: "translate(-50%, -50%)",
     pointerEvents: "none",
     zIndex: 0,
   },

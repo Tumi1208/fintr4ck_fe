@@ -1,6 +1,7 @@
 // src/components/AuthForm.jsx
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import PageTransition from "./PageTransition";
 import Button from "./ui/Button";
 import InputField from "./ui/InputField";
 
@@ -26,7 +27,7 @@ export default function AuthForm({ type, onSubmit, submitting, error }) {
   }
 
   return (
-    <div style={styles.shell}>
+    <PageTransition style={styles.shell}>
       <div style={styles.backdrop} />
       <div style={styles.bgImage} />
       <div style={styles.overlayGradient} />
@@ -120,7 +121,7 @@ export default function AuthForm({ type, onSubmit, submitting, error }) {
           )}
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }
 

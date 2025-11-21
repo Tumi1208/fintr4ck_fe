@@ -6,6 +6,7 @@ import {
   apiUpdateCategory,
   apiDeleteCategory,
 } from "../api/categories";
+import PageTransition from "../components/PageTransition";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
@@ -150,7 +151,7 @@ export default function CategoriesPage() {
   ];
 
   return (
-    <div style={styles.pageShell}>
+    <PageTransition style={styles.pageShell}>
       <div style={styles.bgBlurOne} />
       <div style={styles.bgBlurTwo} />
       <div style={styles.gridLines} />
@@ -186,7 +187,7 @@ export default function CategoriesPage() {
         </div>
 
         <div style={styles.gridTwo}>
-          <Card title="Income categories" style={{ ...styles.card, ...styles.cardNeon }}>
+          <Card animate custom={0} title="Income categories" style={{ ...styles.card, ...styles.cardNeon }}>
             <div style={styles.catGrid}>
               {incomeCats.map((c) => (
                 <CategoryCard
@@ -202,7 +203,7 @@ export default function CategoriesPage() {
             </div>
           </Card>
 
-          <Card title="Expense categories" style={{ ...styles.card, ...styles.cardNeonWarm }}>
+          <Card animate custom={1} title="Expense categories" style={{ ...styles.card, ...styles.cardNeonWarm }}>
             <div style={styles.catGrid}>
               {expenseCats.map((c) => (
                 <CategoryCard
@@ -262,7 +263,7 @@ export default function CategoriesPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageTransition>
   );
 }
 

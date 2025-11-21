@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import PageTransition from "../components/PageTransition";
 
 const palette = {
   bg: "#0b1021",
@@ -94,7 +95,7 @@ export default function HomePage() {
   const lastBudget = budgetSeries[budgetSeries.length - 1];
 
   return (
-    <div style={styles.page}>
+    <PageTransition style={styles.page}>
       <style>{marqueeStyle}</style>
       <header style={styles.header}>
         <div style={styles.logoGroup}>
@@ -267,7 +268,7 @@ export default function HomePage() {
           <div style={styles.footerLogos}>Fintr4ck • Priceline • Kayak</div>
         </div>
       </footer>
-    </div>
+    </PageTransition>
   );
 }
 

@@ -7,6 +7,7 @@ import {
   apiChangePassword,
   apiDeleteMe,
 } from "../api/users";
+import PageTransition from "../components/PageTransition";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
@@ -151,17 +152,17 @@ export default function SettingsPage() {
   }
 
   return (
-    <div>
+    <PageTransition>
       <div style={styles.head}>
         <div>
           <p style={styles.kicker}>Hồ sơ</p>
-          <h1 style={styles.pageTitle}>Cài đặt</h1>
+          <h1 style={styles.pageTitle}>Settings</h1>
           <p style={styles.lead}>Quản lý thông tin cá nhân, bảo mật và tuỳ chọn hiển thị.</p>
         </div>
         {user && <Badge tone="info">ID: {user._id?.slice(-6) || "user"}</Badge>}
       </div>
 
-      <Card title="Profile Information" style={styles.card}>
+      <Card animate custom={0} title="Profile Information" style={styles.card}>
         <p style={styles.description}>Cập nhật tên hiển thị. Email và mã tài khoản chỉ xem.</p>
         <div style={styles.profileSummary}>
           <div style={styles.avatar}>{(user?.name || "F")[0]?.toUpperCase()}</div>
@@ -210,7 +211,7 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <Card title="Bảo mật" style={styles.card}>
+      <Card animate custom={1} title="Bảo mật" style={styles.card}>
         <p style={styles.description}>Đổi mật khẩu để bảo vệ tài khoản của bạn.</p>
 
         {!showPwdForm && (
@@ -287,7 +288,7 @@ export default function SettingsPage() {
         )}
       </Card>
 
-      <Card title="Preferences" style={styles.card}>
+      <Card animate custom={2} title="Preferences" style={styles.card}>
         <p style={styles.description}>Tuỳ chỉnh hiển thị cục bộ (lưu trên trình duyệt của bạn).</p>
         <div style={styles.profileRow}>
           <div style={styles.field}>
@@ -330,7 +331,7 @@ export default function SettingsPage() {
         <Button onClick={handlePrefsSave}>Lưu tuỳ chọn</Button>
       </Card>
 
-      <Card title="Danger Zone" style={styles.card}>
+      <Card animate custom={3} title="Danger Zone" style={styles.card}>
         <p style={styles.description}>Xoá tài khoản và toàn bộ dữ liệu liên quan. Hãy cẩn thận.</p>
 
         <InputField
@@ -348,7 +349,7 @@ export default function SettingsPage() {
           {dangerLoading ? "Đang xoá..." : "Xoá tài khoản"}
         </Button>
       </Card>
-    </div>
+    </PageTransition>
   );
 }
 

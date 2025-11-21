@@ -1,6 +1,7 @@
 // src/pages/TemplatesPage.jsx
 import React, { useEffect, useState } from "react";
 import { apiCreateCategory } from "../api/categories"; // Tận dụng API cũ
+import PageTransition from "../components/PageTransition";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Icon from "../components/ui/Icon";
@@ -458,7 +459,7 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div>
+    <PageTransition>
       <div style={styles.head}>
         <div>
           <p style={styles.kicker}>Templates</p>
@@ -473,7 +474,7 @@ export default function TemplatesPage() {
       </div>
 
       <div style={styles.grid}>
-        {templates.map((tpl) => {
+        {templates.map((tpl, idx) => {
           const wrapperStyle = tpl.bestChoice
             ? { ...styles.bestChoiceWrap, backgroundImage: styles.rainbowGradient }
             : styles.cardShell;
@@ -481,6 +482,8 @@ export default function TemplatesPage() {
           return (
             <div key={tpl.id} style={wrapperStyle}>
               <Card
+                animate
+                custom={idx}
                 style={{
                   ...styles.card,
                   borderColor: tpl.bestChoice ? "transparent" : tpl.btnColor,
@@ -539,7 +542,7 @@ export default function TemplatesPage() {
           );
         })}
       </div>
-    </div>
+    </PageTransition>
   );
 }
 

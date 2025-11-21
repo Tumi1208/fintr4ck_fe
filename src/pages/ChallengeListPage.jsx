@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApiHelpers } from "../api/auth";
+import PageTransition from "../components/PageTransition";
 
 const { API_BASE, getAuthHeaders } = authApiHelpers;
 
@@ -100,7 +101,7 @@ export default function ChallengeListPage() {
         if (Array.isArray(data)) {
           setJoinedIds(new Set(data.map((uc) => uc.challenge?._id || uc.challenge)));
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
@@ -155,7 +156,7 @@ export default function ChallengeListPage() {
   }
 
   return (
-    <div style={styles.container}>
+    <PageTransition style={styles.container}>
       <div style={styles.header}>
         <div>
           <p style={styles.kicker}>Challenge</p>
@@ -250,7 +251,7 @@ export default function ChallengeListPage() {
         ))}
         {!loading && items.length === 0 && <div style={styles.info}>Chưa có challenge.</div>}
       </div>
-    </div>
+    </PageTransition>
   );
 }
 

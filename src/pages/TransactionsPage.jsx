@@ -1,5 +1,5 @@
 // src/pages/TransactionsPage.jsx
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   apiGetTransactions,
   apiDeleteTransaction,
@@ -8,6 +8,7 @@ import {
   apiUpdateTransaction,
 } from "../api/transactions";
 import { apiGetCategories } from "../api/categories";
+import PageTransition from "../components/PageTransition";
 import Card from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
@@ -37,17 +38,7 @@ export default function TransactionsPage() {
     });
   }, []);
 
-  // 2. Logic tìm kiếm thông minh (Debounce)
-  // Khi người dùng gõ, chờ 500ms rồi mới gọi API fetchTransactions
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchTransactions();
-    }, 500); // Độ trễ 0.5s giúp không gọi API liên tục
-
-    return () => clearTimeout(timer);
-  }, [searchTerm, filters]); // Chạy lại khi gõ phím hoặc đổi filter dropdown
-
-  async function fetchTransactions() {
+  const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
       const cleanFilters = {};
@@ -68,7 +59,17 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filters, searchTerm]);
+
+  // 2. Logic tìm kiếm thông minh (Debounce)
+  // Khi người dùng gõ, chờ 500ms rồi mới gọi API fetchTransactions
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchTransactions();
+    }, 500); // Độ trễ 0.5s giúp không gọi API liên tục
+
+    return () => clearTimeout(timer);
+  }, [fetchTransactions]);
 
   async function handleDelete(id) {
     if (!window.confirm("Bạn có chắc muốn xóa giao dịch này?")) return;
@@ -136,7 +137,7 @@ export default function TransactionsPage() {
   const allSelected = transactions.length > 0 && selectedIds.length === transactions.length;
 
   return (
-    <div>
+    <PageTransition>
       <div style={styles.pageHead}>
         <div>
           <p style={styles.kicker}>Nhật ký giao dịch</p>
@@ -146,7 +147,7 @@ export default function TransactionsPage() {
         <Badge tone="info">{transactions.length} kết quả</Badge>
       </div>
 
-      <Card style={{ marginBottom: 18 }}>
+      <Card animate custom={0} style={{ marginBottom: 18 }}>
         <div style={styles.filterBar}>
           <select
             style={styles.select}
@@ -193,7 +194,7 @@ export default function TransactionsPage() {
         </div>
       </Card>
 
-      <Card>
+      <Card animate custom={1}>
         <div style={styles.tableActions}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-muted)", fontSize: 14 }}>
             <Badge tone="info">{transactions.length} giao dịch</Badge>
@@ -332,7 +333,7 @@ export default function TransactionsPage() {
           </table>
         )}
       </Card>
-    </div>
+    </PageTransition>
   );
 }
 
