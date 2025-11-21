@@ -8,7 +8,6 @@ import {
 } from "../api/categories";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import Badge from "../components/ui/Badge";
 import InputField from "../components/ui/InputField";
 import Icon from "../components/ui/Icon";
 
@@ -143,58 +142,82 @@ export default function CategoriesPage() {
 
   const incomeCats = categories.filter((c) => c.type === "income");
   const expenseCats = categories.filter((c) => c.type === "expense");
+  const stats = [
+    { label: "Tổng danh mục", value: categories.length, hint: "Thu & chi đang sử dụng" },
+    { label: "Thu nhập", value: incomeCats.length, hint: "Kênh kiếm tiền của bạn" },
+    { label: "Chi tiêu", value: expenseCats.length, hint: "Nhóm chi chính" },
+    { label: "Đã chọn", value: selectedIds.length, hint: "Sẵn sàng xoá/biến đổi" },
+  ];
 
   return (
-    <div>
-      <div style={styles.pageHead}>
-        <div>
-          <p style={styles.kicker}>Danh mục</p>
-          <h1 style={styles.title}>Categories</h1>
-          <p style={styles.lead}>Tổ chức thu/chi rõ ràng để báo cáo mượt mà.</p>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Button variant="subtle" onClick={handleDeleteSelected} disabled={!hasSelection || bulkLoading}>
-            <Icon name="trash" tone="red" size={16} background={false} /> Xoá đã chọn
-          </Button>
-          <Button variant="ghost" onClick={handleDeleteAll} disabled={categories.length === 0 || bulkLoading}>
-            <Icon name="trash" tone="red" size={16} /> Xoá toàn bộ
-          </Button>
-          <Button onClick={openCreateModal}>Thêm danh mục</Button>
-        </div>
-      </div>
+    <div style={styles.pageShell}>
+      <div style={styles.bgBlurOne} />
+      <div style={styles.bgBlurTwo} />
+      <div style={styles.gridLines} />
 
-      <div style={styles.gridTwo}>
-        <Card title="Income categories" style={styles.card}>
-          <div style={styles.catGrid}>
-            {incomeCats.map((c) => (
-              <CategoryCard
-                key={c._id}
-                category={c}
-                onEdit={() => openEditModal(c)}
-                onDelete={() => handleDelete(c)}
-                selected={selectedIds.includes(c._id)}
-                onToggleSelect={() => toggleSelect(c._id)}
-              />
-            ))}
-            {incomeCats.length === 0 && <p style={styles.emptyText}>Chưa có danh mục thu nhập</p>}
+      <div style={styles.content}>
+        <div style={styles.pageHead}>
+          <div>
+            <p style={styles.kicker}>Danh mục</p>
+            <h1 style={styles.title}>Categories</h1>
+            <p style={styles.lead}>Tổ chức thu/chi rõ ràng để báo cáo mượt mà.</p>
           </div>
-        </Card>
+          <div style={styles.headActions}>
+            <Button variant="subtle" onClick={handleDeleteSelected} disabled={!hasSelection || bulkLoading}>
+              <Icon name="trash" tone="red" size={16} background={false} /> Xoá đã chọn
+            </Button>
+            <Button variant="ghost" onClick={handleDeleteAll} disabled={categories.length === 0 || bulkLoading}>
+              <Icon name="trash" tone="red" size={16} /> Xoá toàn bộ
+            </Button>
+            <Button onClick={openCreateModal}>
+              <Icon name="plus" tone="slate" size={16} background={false} /> Thêm danh mục
+            </Button>
+          </div>
+        </div>
 
-        <Card title="Expense categories" style={styles.card}>
-          <div style={styles.catGrid}>
-            {expenseCats.map((c) => (
-              <CategoryCard
-                key={c._id}
-                category={c}
-                onEdit={() => openEditModal(c)}
-                onDelete={() => handleDelete(c)}
-                selected={selectedIds.includes(c._id)}
-                onToggleSelect={() => toggleSelect(c._id)}
-              />
-            ))}
-            {expenseCats.length === 0 && <p style={styles.emptyText}>Chưa có danh mục chi tiêu</p>}
-          </div>
-        </Card>
+        <div style={styles.statsRow}>
+          {stats.map((s) => (
+            <div key={s.label} style={styles.statCard}>
+              <div style={styles.statLabel}>{s.label}</div>
+              <div style={styles.statValue}>{s.value}</div>
+              <div style={styles.statHint}>{s.hint}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={styles.gridTwo}>
+          <Card title="Income categories" style={{ ...styles.card, ...styles.cardNeon }}>
+            <div style={styles.catGrid}>
+              {incomeCats.map((c) => (
+                <CategoryCard
+                  key={c._id}
+                  category={c}
+                  onEdit={() => openEditModal(c)}
+                  onDelete={() => handleDelete(c)}
+                  selected={selectedIds.includes(c._id)}
+                  onToggleSelect={() => toggleSelect(c._id)}
+                />
+              ))}
+              {incomeCats.length === 0 && <p style={styles.emptyText}>Chưa có danh mục thu nhập</p>}
+            </div>
+          </Card>
+
+          <Card title="Expense categories" style={{ ...styles.card, ...styles.cardNeonWarm }}>
+            <div style={styles.catGrid}>
+              {expenseCats.map((c) => (
+                <CategoryCard
+                  key={c._id}
+                  category={c}
+                  onEdit={() => openEditModal(c)}
+                  onDelete={() => handleDelete(c)}
+                  selected={selectedIds.includes(c._id)}
+                  onToggleSelect={() => toggleSelect(c._id)}
+                />
+              ))}
+              {expenseCats.length === 0 && <p style={styles.emptyText}>Chưa có danh mục chi tiêu</p>}
+            </div>
+          </Card>
+        </div>
       </div>
 
       {modalOpen && (
@@ -246,11 +269,11 @@ export default function CategoriesPage() {
 function CategoryCard({ category, onEdit, onDelete, selected, onToggleSelect }) {
   return (
     <div style={{ ...styles.catCard, ...(selected ? styles.catCardSelected : {}) }}>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+      <div style={styles.catCardTop}>
         <button style={{ ...styles.check, ...(selected ? styles.checkActive : {}) }} onClick={onToggleSelect} aria-label="Chọn danh mục">
           {selected && <Icon name="check" tone="green" size={14} background={false} />}
         </button>
-        <div style={styles.catIcon}>
+        <div style={{ ...styles.catIcon, ...(category.type === "income" ? styles.catIconPositive : styles.catIconNegative) }}>
           {renderCategoryIcon(category)}
         </div>
         <div>
@@ -258,21 +281,19 @@ function CategoryCard({ category, onEdit, onDelete, selected, onToggleSelect }) 
           <div
             style={{
               ...styles.tag,
-              backgroundColor:
-                category.type === "income" ? "#DCFCE7" : "#FEE2E2",
-              color: category.type === "income" ? "#16A34A" : "#DC2626",
+              ...(category.type === "income" ? styles.tagIncome : styles.tagExpense),
             }}
           >
-            {category.type}
+            {category.type === "income" ? "Thu nhập" : "Chi tiêu"}
           </div>
         </div>
       </div>
 
-      <div style={{ marginTop: "auto", textAlign: "right" }}>
+      <div style={styles.cardActions}>
         <button style={styles.iconBtn} onClick={onEdit} aria-label="Sửa danh mục">
           <Icon name="edit" tone="blue" size={18} background={false} />
         </button>
-        <button style={styles.iconBtn} onClick={onDelete} aria-label="Xoá danh mục">
+        <button style={{ ...styles.iconBtn, ...styles.iconBtnDanger }} onClick={onDelete} aria-label="Xoá danh mục">
           <Icon name="trash" tone="red" size={18} background={false} />
         </button>
       </div>
@@ -311,18 +332,78 @@ function renderCategoryIcon(category) {
 }
 
 const styles = {
-  pageHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  pageShell: {
+    position: "relative",
+    minHeight: "100%",
+    padding: "12px 12px 24px",
+    overflow: "hidden",
+  },
+  content: { position: "relative", zIndex: 1 },
+  bgBlurOne: {
+    position: "absolute",
+    inset: "-120px -140px auto auto",
+    height: 260,
+    width: 320,
+    background: "radial-gradient(circle, rgba(34,197,94,0.18), transparent 60%)",
+    filter: "blur(60px)",
+    opacity: 0.9,
+  },
+  bgBlurTwo: {
+    position: "absolute",
+    inset: "auto auto -140px -160px",
+    height: 280,
+    width: 360,
+    background: "radial-gradient(circle, rgba(14,165,233,0.18), transparent 55%)",
+    filter: "blur(60px)",
+    opacity: 0.9,
+  },
+  gridLines: {
+    position: "absolute",
+    inset: 0,
+    background:
+      "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
+    backgroundSize: "60px 60px",
+    maskImage: "radial-gradient(circle at center, black 55%, transparent 75%)",
+    opacity: 0.35,
+  },
+  pageHead: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    gap: 12,
+  },
   kicker: {
     display: "inline-flex",
-    padding: "6px 10px",
-    borderRadius: 999,
-    background: "rgba(226,232,240,0.06)",
-    border: "1px solid var(--border-soft)",
-    color: "var(--text-muted)",
+    padding: "8px 12px",
+    borderRadius: 12,
+    background: "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(16,185,129,0.12))",
+    border: "1px solid rgba(148,163,184,0.25)",
+    color: "#cbd5e1",
     fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: 0.2,
   },
-  title: { margin: "8px 0 4px", color: "var(--text-strong)", fontSize: 26, letterSpacing: -0.3 },
-  lead: { margin: 0, color: "var(--text-muted)" },
+  title: { margin: "8px 0 4px", color: "var(--text-strong)", fontSize: 28, letterSpacing: -0.4 },
+  lead: { margin: 0, color: "var(--text-muted)", maxWidth: 520 },
+  headActions: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
+  statsRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 12,
+    marginBottom: 16,
+  },
+  statCard: {
+    padding: 14,
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(148,163,184,0.2)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(6px)",
+  },
+  statLabel: { color: "var(--text-muted)", fontSize: 12, marginBottom: 4 },
+  statValue: { color: "var(--text-strong)", fontSize: 22, fontWeight: 800, letterSpacing: -0.3 },
+  statHint: { color: "var(--text-muted)", fontSize: 12 },
   gridTwo: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -331,24 +412,38 @@ const styles = {
   card: {
     minHeight: 280,
   },
+  cardNeon: {
+    background: "linear-gradient(180deg, rgba(15,23,42,0.55), rgba(15,23,42,0.85))",
+    border: "1px solid rgba(74,222,128,0.25)",
+    boxShadow: "0 20px 60px rgba(22,163,74,0.15)",
+  },
+  cardNeonWarm: {
+    background: "linear-gradient(180deg, rgba(15,23,42,0.55), rgba(15,23,42,0.85))",
+    border: "1px solid rgba(248,113,113,0.2)",
+    boxShadow: "0 20px 60px rgba(248,113,113,0.12)",
+  },
   catGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
     gap: 12,
   },
   catCard: {
-    backgroundColor: "rgba(226,232,240,0.06)",
+    background: "linear-gradient(140deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))",
     borderRadius: 16,
     padding: 12,
     display: "flex",
     flexDirection: "column",
     minHeight: 96,
-    border: "1px solid rgba(148,163,184,0.15)",
+    border: "1px solid rgba(148,163,184,0.18)",
+    boxShadow: "0 16px 40px rgba(0,0,0,0.35)",
+    transition: "transform 0.15s ease, box-shadow 0.15s ease, border 0.15s ease",
   },
   catCardSelected: {
-    border: "1px solid rgba(34,197,94,0.5)",
-    boxShadow: "0 12px 28px rgba(34,197,94,0.18)",
+    border: "1px solid rgba(34,197,94,0.55)",
+    boxShadow: "0 18px 44px rgba(34,197,94,0.2)",
+    transform: "translateY(-2px)",
   },
+  catCardTop: { display: "flex", alignItems: "center", marginBottom: 8, gap: 8 },
   check: {
     width: 26,
     height: 26,
@@ -366,21 +461,27 @@ const styles = {
     background: "rgba(34,197,94,0.16)",
   },
   catIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    background: "linear-gradient(135deg, rgba(124,58,237,0.2), rgba(14,165,233,0.14))",
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     border: "1px solid rgba(148,163,184,0.28)",
     display: "grid",
     placeItems: "center",
-    marginRight: 10,
-    boxShadow: "0 10px 22px rgba(0,0,0,0.25)",
+    marginRight: 4,
+    boxShadow: "0 12px 26px rgba(0,0,0,0.28)",
+  },
+  catIconPositive: {
+    background: "linear-gradient(135deg, rgba(34,197,94,0.22), rgba(59,130,246,0.14))",
+  },
+  catIconNegative: {
+    background: "linear-gradient(135deg, rgba(248,113,113,0.2), rgba(234,179,8,0.18))",
   },
   customIcon: { fontSize: 16, color: "var(--text-strong)", fontWeight: 700 },
   catName: {
     fontSize: 14,
     color: "var(--text-strong)",
-    fontWeight: 600,
+    fontWeight: 700,
+    letterSpacing: -0.2,
   },
   tag: {
     display: "inline-block",
@@ -388,6 +489,18 @@ const styles = {
     padding: "2px 8px",
     borderRadius: 999,
     fontSize: 11,
+    fontWeight: 700,
+    border: "1px solid transparent",
+  },
+  tagIncome: {
+    backgroundColor: "rgba(34,197,94,0.12)",
+    color: "#22c55e",
+    borderColor: "rgba(34,197,94,0.35)",
+  },
+  tagExpense: {
+    backgroundColor: "rgba(248,113,113,0.14)",
+    color: "#f87171",
+    borderColor: "rgba(248,113,113,0.35)",
   },
   emptyText: {
     fontSize: 13,
@@ -404,18 +517,19 @@ const styles = {
   },
   modalCard: {
     width: 380,
-    backgroundColor: "rgba(15,23,42,0.9)",
+    background: "linear-gradient(160deg, rgba(15,23,42,0.94), rgba(15,23,42,0.82))",
     borderRadius: 24,
     padding: 20,
-    boxShadow: "0 22px 60px rgba(0,0,0,0.45)",
-    border: "1px solid rgba(148,163,184,0.25)",
+    boxShadow: "0 22px 60px rgba(0,0,0,0.55)",
+    border: "1px solid rgba(148,163,184,0.3)",
     color: "var(--text-strong)",
   },
   modalTitle: {
     margin: 0,
-    marginBottom: 16,
-    fontSize: 18,
+    marginBottom: 18,
+    fontSize: 20,
     color: "var(--text-strong)",
+    letterSpacing: -0.2,
   },
   field: {
     marginBottom: 12,
@@ -454,4 +568,8 @@ const styles = {
     justifyContent: "center",
     transition: "all 0.15s ease",
   },
+  iconBtnDanger: {
+    borderColor: "rgba(248,113,113,0.35)",
+  },
+  cardActions: { marginTop: "auto", display: "flex", justifyContent: "flex-end", gap: 6 },
 };
