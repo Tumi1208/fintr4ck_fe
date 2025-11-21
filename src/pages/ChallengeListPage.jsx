@@ -58,11 +58,10 @@ export default function ChallengeListPage() {
           headers: { ...getAuthHeaders() },
         });
         const contentType = res.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            setJoinedIds(new Set(data.map((uc) => uc.challenge?._id || uc.challenge)));
-          }
+        if (!contentType.includes("application/json")) return;
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setJoinedIds(new Set(data.map((uc) => uc.challenge?._id || uc.challenge)));
         }
       } catch (err) {
         // ignore

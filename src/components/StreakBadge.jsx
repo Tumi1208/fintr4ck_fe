@@ -148,6 +148,3 @@ export default function StreakBadge({ streak }) {
     </>
   );
 }
-
-// Ví dụ sử dụng:
-// <StreakBadge streak={currentStreak} />
