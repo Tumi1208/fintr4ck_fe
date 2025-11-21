@@ -1,6 +1,18 @@
 // src/components/Layout.jsx
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { pageVariants } from "../utils/animations";
 import ChatbotWidget from "./ChatbotWidget";
+
+const palette = {
+  bg: "var(--bg-primary)",
+  card: "var(--bg-card)",
+  surface: "var(--bg-surface)",
+  border: "var(--border-soft)",
+  text: "var(--text-strong)",
+  muted: "var(--text-muted)",
+  primary: "linear-gradient(135deg, #7c3aed, #0ea5e9)",
+};
 
 const navItems = [
   { to: "/app", label: "Dashboard", icon: "📊", exact: true },
@@ -42,10 +54,11 @@ export default function Layout() {
               style={({ isActive }) => ({
                 ...styles.navItem,
                 background: isActive
-                  ? "linear-gradient(135deg, rgba(124,58,237,0.9), rgba(14,165,233,0.9))"
-                  : "rgba(226,232,240,0.04)",
-                color: isActive ? "#0B1021" : "rgba(226,232,240,0.86)",
-                border: isActive ? "1px solid rgba(148,163,184,0.45)" : "1px solid rgba(148,163,184,0.15)",
+                  ? palette.primary
+                  : "rgba(255,255,255,0.04)",
+                color: isActive ? "#0b1021" : palette.text,
+                border: isActive ? "1px solid rgba(124,58,237,0.35)" : `1px solid ${palette.border}`,
+                boxShadow: isActive ? "0 12px 30px rgba(14,165,233,0.28)" : "none",
               })}
             >
               <span style={{ marginRight: 10 }}>{item.icon}</span>
@@ -62,9 +75,15 @@ export default function Layout() {
       </aside>
 
       <main style={styles.main}>
-        <div style={styles.mainInner}>
+        <motion.div
+          style={styles.mainInner}
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
           <Outlet />
-        </div>
+        </motion.div>
       </main>
 
       <ChatbotWidget />
@@ -77,13 +96,14 @@ const styles = {
     minHeight: "100vh",
     display: "flex",
     position: "relative",
-    background: "#0B1021",
+    background: palette.bg,
+    color: palette.text,
   },
   backdrop: {
     position: "fixed",
     inset: 0,
     background:
-      "radial-gradient(circle at 15% 20%, rgba(14,165,233,0.18), transparent 30%), radial-gradient(circle at 85% 0%, rgba(124,58,237,0.24), transparent 32%), #0B1021",
+      "radial-gradient(circle at 15% 20%, rgba(124,58,237,0.18), transparent 30%), radial-gradient(circle at 82% 5%, rgba(14,165,233,0.16), transparent 32%), radial-gradient(circle at 60% 74%, rgba(34,193,195,0.14), transparent 26%), var(--bg-primary)",
     zIndex: 0,
   },
   sidebar: {
@@ -91,13 +111,14 @@ const styles = {
     top: 0,
     width: 260,
     minHeight: "100vh",
-    background: "rgba(15,23,42,0.75)",
-    backdropFilter: "blur(12px)",
-    borderRight: "1px solid rgba(148,163,184,0.15)",
-    padding: 24,
+    background: palette.surface,
+    backdropFilter: "blur(14px)",
+    borderRight: `1px solid ${palette.border}`,
+    padding: 20,
     display: "flex",
     flexDirection: "column",
     zIndex: 1,
+    boxShadow: "0 16px 42px rgba(0,0,0,0.35)",
   },
   sideLogo: {
     display: "flex",
@@ -110,12 +131,12 @@ const styles = {
   },
   logoText: {
     fontWeight: 700,
-    color: "#F8FAFC",
+    color: palette.text,
     fontSize: 18,
   },
   logoSub: {
     fontSize: 11,
-    color: "rgba(226,232,240,0.7)",
+    color: palette.muted,
   },
   navItem: {
     display: "flex",
@@ -124,18 +145,19 @@ const styles = {
     borderRadius: 999,
     fontSize: 14,
     marginBottom: 8,
-    textDecoration: "none",
     transition: "transform 0.15s ease, background 0.2s ease",
+    textDecoration: "none",
   },
   logoutBtn: {
     marginTop: "auto",
-    padding: "8px 12px",
+    padding: "10px 12px",
     borderRadius: 999,
-    border: "1px solid rgba(148,163,184,0.35)",
-    backgroundColor: "rgba(226,232,240,0.06)",
-    color: "#F9FAFB",
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.04)",
+    color: palette.text,
     fontSize: 13,
     cursor: "pointer",
+    fontWeight: 700,
   },
   main: {
     flex: 1,
@@ -145,10 +167,10 @@ const styles = {
   },
   mainInner: {
     minHeight: "100%",
-    background: "rgba(226,232,240,0.02)",
-    border: "1px solid rgba(148,163,184,0.1)",
+    background: palette.card,
+    border: `1px solid ${palette.border}`,
     borderRadius: 24,
     padding: 24,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+    boxShadow: "var(--shadow-card)",
   },
 };

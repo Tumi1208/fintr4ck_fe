@@ -98,7 +98,7 @@ const styles = {
   thumbWrapper: {
     height: 180,
     position: "relative",
-    backgroundColor: "#0f172a",
+    backgroundColor: "var(--bg-primary)",
     overflow: "hidden",
     borderRadius: 16,
   },
@@ -112,7 +112,7 @@ const styles = {
     position: "absolute",
     top: 12,
     right: 12,
-    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    backgroundColor: "var(--bg-surface)",
     backdropFilter: "blur(4px)",
     padding: "4px 12px",
     borderRadius: 20,

@@ -21,14 +21,14 @@ const variants = {
     boxShadow: "0 18px 40px rgba(14,165,233,0.35)",
   },
   ghost: {
-    background: "rgba(226,232,240,0.06)",
+    background: "rgba(255,255,255,0.06)",
     color: "var(--text-strong)",
-    border: "1px solid rgba(148,163,184,0.25)",
+    border: "1px solid var(--border-soft)",
   },
   subtle: {
-    background: "rgba(226,232,240,0.08)",
+    background: "rgba(255,255,255,0.05)",
     color: "var(--text-muted)",
-    border: "1px solid rgba(148,163,184,0.15)",
+    border: "1px solid rgba(148,163,184,0.18)",
   },
   danger: {
     background: "rgba(239,68,68,0.1)",

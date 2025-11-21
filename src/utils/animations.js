@@ -22,13 +22,13 @@ export const pageVariants = {
   
   // Style dùng chung (Gradient & Shadow cao cấp)
   export const globalStyles = {
-    gradientBg: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)", // Xanh sang Tím
+    gradientBg: "linear-gradient(135deg, #7c3aed 0%, #0ea5e9 100%)", // Tím sang Xanh cyan
     glassCard: {
-      background: "rgba(255, 255, 255, 0.95)",
-      backdropFilter: "blur(10px)",
+      background: "rgba(15, 23, 42, 0.9)",
+      backdropFilter: "blur(14px)",
       borderRadius: "24px",
-      boxShadow: "0 10px 30px -10px rgba(60, 70, 150, 0.15)", // Bóng đổ mềm, sâu
-      border: "1px solid rgba(255,255,255,0.5)"
+      boxShadow: "0 20px 50px rgba(0, 0, 0, 0.45)", // Bóng đổ mềm, sâu
+      border: "1px solid rgba(148,163,184,0.22)"
     },
     hoverScale: { scale: 1.02, transition: { duration: 0.2 } }
   };
