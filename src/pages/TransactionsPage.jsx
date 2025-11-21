@@ -1,6 +1,12 @@
 // src/pages/TransactionsPage.jsx
 import { useEffect, useState } from "react";
-import { apiGetTransactions, apiDeleteTransaction } from "../api/transactions";
+import {
+  apiGetTransactions,
+  apiDeleteTransaction,
+  apiDeleteAllTransactions,
+  apiBulkDeleteTransactions,
+  apiUpdateTransaction,
+} from "../api/transactions";
 import { apiGetCategories } from "../api/categories";
 import Card from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
@@ -12,6 +18,9 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [categorySaving, setCategorySaving] = useState({});
 
   // State riêng cho ô tìm kiếm để xử lý độ trễ (Debounce)
   const [searchTerm, setSearchTerm] = useState(""); 
@@ -53,6 +62,7 @@ export default function TransactionsPage() {
       // Đảm bảo luôn nhận về mảng
       const list = Array.isArray(data) ? data : (data.transactions || []);
       setTransactions(list);
+      setSelectedIds((prev) => prev.filter((id) => list.some((t) => t._id === id)));
     } catch (err) {
       console.error("Lỗi tải transaction:", err);
     } finally {
@@ -69,6 +79,61 @@ export default function TransactionsPage() {
       alert("Lỗi khi xóa: " + err.message);
     }
   }
+
+  async function handleDeleteSelected() {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Xoá ${selectedIds.length} giao dịch đã chọn?`)) return;
+    try {
+      setBulkLoading(true);
+      await apiBulkDeleteTransactions(selectedIds);
+      setSelectedIds([]);
+      fetchTransactions();
+    } catch (err) {
+      alert("Lỗi khi xoá giao dịch đã chọn: " + err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  async function handleDeleteAll() {
+    if (!window.confirm("Bạn chắc chắn muốn xoá TOÀN BỘ giao dịch? Thao tác này không thể hoàn tác.")) return;
+    try {
+      setBulkLoading(true);
+      await apiDeleteAllTransactions();
+      setSelectedIds([]);
+      fetchTransactions();
+    } catch (err) {
+      alert("Lỗi khi xoá tất cả giao dịch: " + err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.length === transactions.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(transactions.map((t) => t._id));
+    }
+  }
+
+  async function handleCategoryChange(id, categoryId) {
+    setCategorySaving((prev) => ({ ...prev, [id]: true }));
+    try {
+      await apiUpdateTransaction(id, { categoryId: categoryId || null });
+      fetchTransactions();
+    } catch (err) {
+      alert("Cập nhật danh mục thất bại: " + err.message);
+    } finally {
+      setCategorySaving((prev) => ({ ...prev, [id]: false }));
+    }
+  }
+
+  const allSelected = transactions.length > 0 && selectedIds.length === transactions.length;
 
   return (
     <div>
@@ -129,6 +194,52 @@ export default function TransactionsPage() {
       </Card>
 
       <Card>
+        <div style={styles.tableActions}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-muted)", fontSize: 14 }}>
+            <Badge tone="info">{transactions.length} giao dịch</Badge>
+            {selectedIds.length > 0 && (
+              <span style={{ color: "var(--text-strong)", fontWeight: 700 }}>
+                Đã chọn {selectedIds.length}
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {transactions.length > 0 && (
+              <Button
+                variant="ghost"
+                style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
+                onClick={toggleSelectAll}
+                disabled={bulkLoading}
+              >
+                <Icon name={allSelected ? "close" : "check"} tone="slate" size={16} background={false} />
+                {allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+              </Button>
+            )}
+            {selectedIds.length > 0 && (
+              <Button
+                variant="danger"
+                style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
+                onClick={handleDeleteSelected}
+                disabled={bulkLoading}
+              >
+                <Icon name="trash" tone="red" size={16} background={false} />
+                Xoá giao dịch đã chọn
+              </Button>
+            )}
+            {transactions.length > 0 && (
+              <Button
+                variant="danger"
+                style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
+                onClick={handleDeleteAll}
+                disabled={bulkLoading}
+              >
+                <Icon name="trash" tone="red" size={16} background={false} />
+                Xoá tất cả
+              </Button>
+            )}
+          </div>
+        </div>
+
         {loading ? (
           <p style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>Đang tìm kiếm...</p>
         ) : transactions.length === 0 ? (
@@ -142,6 +253,9 @@ export default function TransactionsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
+                <th style={{ textAlign: "center", width: 40 }}>
+                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+                </th>
                 <th style={{ textAlign: "left", paddingLeft: 18 }}>Ngày</th>
                 <th style={{ textAlign: "left" }}>Danh mục</th>
                 <th style={{ textAlign: "left" }}>Loại</th>
@@ -153,18 +267,36 @@ export default function TransactionsPage() {
             <tbody>
               {transactions.map((t) => (
                 <tr key={t._id} style={styles.tr}>
+                  <td style={{ textAlign: "center" }}>
+                    <input type="checkbox" checked={selectedIds.includes(t._id)} onChange={() => toggleSelect(t._id)} />
+                  </td>
                   <td style={{ paddingLeft: 18, color: "var(--text-strong)" }}>
                     {new Date(t.date).toLocaleDateString("vi-VN")}
                   </td>
                   <td>
-                    {t.category ? (
-                      <span style={styles.catBadge}>
+                    <div style={styles.catSelectWrap}>
+                      <div style={styles.catSelectDisplay}>
                         <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
-                        {t.category.name}
-                      </span>
-                    ) : (
-                      <span style={{ color: "var(--text-muted)" }}>-</span>
-                    )}
+                        <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
+                        {categorySaving[t._id] && <span style={styles.saveHint}>Đang lưu...</span>}
+                        <span style={styles.caret}>▾</span>
+                      </div>
+                      <select
+                        style={styles.catSelectNative}
+                        value={t.category?._id || ""}
+                        onChange={(e) => handleCategoryChange(t._id, e.target.value)}
+                        disabled={categorySaving[t._id]}
+                      >
+                        <option value="">Không phân loại</option>
+                        {categories
+                          .filter((c) => c.type === t.type)
+                          .map((c) => (
+                            <option key={c._id} value={c._id}>
+                              {renderCategoryLabel(c)}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
                   </td>
                   <td>
                     <span
@@ -204,14 +336,56 @@ export default function TransactionsPage() {
   );
 }
 
-function renderTxnCategoryIcon(category) {
-  const tone = category.type === "income" ? "green" : "amber";
+const builtInCategoryIcons = new Set([
+  "wallet",
+  "award",
+  "chart",
+  "bag",
+  "spark",
+  "home",
+  "article",
+  "tool",
+  "link",
+  "arrowUpRight",
+  "arrowDown",
+  "check",
+  "play",
+  "arrowLeft",
+  "refresh",
+  "search",
+  "close",
+  "inbox",
+  "book",
+  "edit",
+  "trash",
+  "dashboard",
+  "receipt",
+  "puzzle",
+  "flag",
+  "checkBadge",
+  "clipboard",
+  "gear",
+]);
 
-  if (category.icon && category.icon.trim()) {
-    return <span style={styles.customCatIcon}>{category.icon.trim()}</span>;
+function renderTxnCategoryIcon(category) {
+  const tone = category ? (category.type === "income" ? "green" : "amber") : "slate";
+  const iconVal = category?.icon && category.icon.trim();
+
+  if (iconVal && builtInCategoryIcons.has(iconVal)) {
+    return <Icon name={iconVal} tone={tone} size={18} background={false} />;
   }
 
-  return <Icon name={category.type === "income" ? "arrowUpRight" : "arrowDown"} tone={tone} size={18} background={false} />;
+  if (iconVal) {
+    return <span style={styles.customCatIcon}>{iconVal}</span>;
+  }
+
+  return <Icon name={category && category.type === "income" ? "arrowUpRight" : "arrowDown"} tone={tone} size={18} background={false} />;
+}
+
+function renderCategoryLabel(category) {
+  if (!category) return "Không phân loại";
+  const iconVal = category.icon && category.icon.trim();
+  return `${iconVal ? `${iconVal} · ` : ""}${category.name}`;
 }
 
 const styles = {
@@ -237,6 +411,44 @@ const styles = {
     color: "var(--text-strong)",
     fontSize: 14,
     outline: "none",
+  },
+  catSelectWrap: {
+    position: "relative",
+    display: "inline-flex",
+    alignItems: "center",
+    minWidth: 220,
+  },
+  catSelectDisplay: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "10px 14px",
+    borderRadius: 16,
+    background: "rgba(226,232,240,0.06)",
+    border: "1px solid rgba(148,163,184,0.2)",
+    color: "var(--text-strong)",
+    fontSize: 14,
+    width: "100%",
+    cursor: "pointer",
+  },
+  catLabel: { flex: 1 },
+  catSelectNative: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0,
+    cursor: "pointer",
+  },
+  saveHint: { color: "#fbbf24", fontSize: 12, fontWeight: 700 },
+  caret: { color: "var(--text-muted)", fontSize: 12, marginLeft: 6 },
+  tableActions: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottom: "1px solid rgba(148,163,184,0.12)",
   },
   table: { width: "100%", borderCollapse: "collapse", fontSize: 14, color: "var(--text-strong)" },
   tr: { borderBottom: "1px solid rgba(148,163,184,0.12)", height: 60 },

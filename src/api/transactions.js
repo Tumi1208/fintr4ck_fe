@@ -63,6 +63,26 @@ export async function apiDeleteTransaction(id) {
   return handleJsonResponse(res);
 }
 
+export async function apiDeleteAllTransactions() {
+  const res = await fetch(`${API_BASE}/transactions`, {
+    method: "DELETE",
+    headers: { ...getAuthHeaders() },
+  });
+  return handleJsonResponse(res);
+}
+
+export async function apiBulkDeleteTransactions(ids = []) {
+  const res = await fetch(`${API_BASE}/transactions/bulk-delete`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ ids }),
+  });
+  return handleJsonResponse(res);
+}
+
 export async function apiGetSummary() {
   // QUAN TRỌNG: Thêm timestamp để luôn lấy dữ liệu mới nhất
   const res = await fetch(`${API_BASE}/transactions/summary?_t=${Date.now()}`, {
