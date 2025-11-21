@@ -1,6 +1,7 @@
 // src/pages/ResourcesPage.jsx
 import React from "react";
 import Card from "../components/ui/Card";
+import Icon from "../components/ui/Icon";
 
 export default function ResourcesPage() {
   const resources = [
@@ -46,9 +47,18 @@ export default function ResourcesPage() {
     }
   ];
 
+  function getTagMeta(type) {
+    if (type === "video") return { label: "Video hướng dẫn", icon: "play", tone: "brand" };
+    if (type === "article") return { label: "Bài viết chọn lọc", icon: "article", tone: "amber" };
+    return { label: "Công cụ tính toán", icon: "tool", tone: "green" };
+  }
+
   return (
     <div>
-      <h1 style={styles.pageTitle}>Góc Kiến Thức Tài Chính 📚</h1>
+      <div style={styles.titleRow}>
+        <Icon name="book" tone="brand" size={26} />
+        <h1 style={styles.pageTitle}>Góc Kiến Thức Tài Chính</h1>
+      </div>
       <p style={styles.subTitle}>Tổng hợp nguồn uy tín giúp bạn nâng cao tư duy tài chính.</p>
 
       <div style={styles.grid}>
@@ -57,19 +67,28 @@ export default function ResourcesPage() {
             <a href={item.link} target="_blank" rel="noreferrer" style={styles.anchor}>
               <div style={styles.thumbWrapper}>
                 <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
-                <span style={styles.tag}>
-                  {item.type === "video"
-                    ? "Video 📺"
-                    : item.type === "article"
-                    ? "Báo VnExpress 📰"
-                    : "Công cụ 🛠️"}
-                </span>
-                {item.type === "video" && <div style={styles.playIcon}>▶</div>}
+                {(() => {
+                  const meta = getTagMeta(item.type);
+                  return (
+                    <span style={styles.tag}>
+                      <Icon name={meta.icon} tone={meta.tone} size={16} />
+                      <span>{meta.label}</span>
+                    </span>
+                  );
+                })()}
+                {item.type === "video" && (
+                  <div style={styles.playIcon}>
+                    <Icon name="play" tone="brand" size={30} background={false} />
+                  </div>
+                )}
               </div>
               <div style={styles.content}>
                 <h3 style={styles.cardTitle}>{item.title}</h3>
                 <p style={styles.cardDesc}>{item.desc}</p>
-                <span style={styles.linkText}>Xem chi tiết →</span>
+                <span style={styles.linkText}>
+                  Xem chi tiết
+                  <Icon name="link" tone="brand" size={16} background={false} />
+                </span>
               </div>
             </a>
           </Card>
@@ -80,6 +99,7 @@ export default function ResourcesPage() {
 }
 
 const styles = {
+  titleRow: { display: "flex", alignItems: "center", gap: 10 },
   pageTitle: { fontSize: 26, color: "var(--text-strong)", marginBottom: 4, fontWeight: 800 },
   subTitle: { fontSize: 14, color: "var(--text-muted)", marginBottom: 18 },
   grid: {
@@ -112,30 +132,32 @@ const styles = {
     position: "absolute",
     top: 12,
     right: 12,
-    backgroundColor: "var(--bg-surface)",
-    backdropFilter: "blur(4px)",
-    padding: "4px 12px",
-    borderRadius: 20,
+    backgroundColor: "rgba(5,8,20,0.65)",
+    backdropFilter: "blur(8px)",
+    padding: "4px 10px 4px 6px",
+    borderRadius: 16,
     fontSize: 11,
     color: "#F8FAFC",
     fontWeight: 600,
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.26)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    border: "1px solid rgba(255,255,255,0.18)",
   },
   playIcon: {
     position: "absolute",
     top: "50%",
     left: "50%",
     transform: "translate(-50%, -50%)",
-    width: 48,
-    height: 48,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    width: 62,
+    height: 62,
+    background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.78))",
     borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 20,
-    color: "#DC2626",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+    display: "grid",
+    placeItems: "center",
+    boxShadow: "0 18px 44px rgba(0,0,0,0.35)",
+    border: "1px solid rgba(255,255,255,0.26)",
   },
   content: {
     padding: 20,
@@ -158,7 +180,9 @@ const styles = {
     lineHeight: 1.5,
   },
   linkText: {
-    display: "inline-block",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
     color: "#67e8f9",
     fontWeight: 600,
     fontSize: 14,

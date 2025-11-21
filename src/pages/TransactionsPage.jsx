@@ -6,6 +6,7 @@ import Card from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
+import Icon from "../components/ui/Icon";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState([]);
@@ -110,13 +111,19 @@ export default function TransactionsPage() {
               placeholder="Tìm ngày, danh mục, ghi chú..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              rightSlot={searchTerm ? "⨉" : "🔍"}
+              rightSlot={
+                searchTerm ? (
+                  <Icon name="close" tone="slate" size={14} background={false} />
+                ) : (
+                  <Icon name="search" tone="slate" size={14} background={false} />
+                )
+              }
               onRightSlotClick={searchTerm ? () => setSearchTerm("") : undefined}
             />
           </div>
 
           <Button variant="ghost" style={{ padding: "12px 14px" }} onClick={fetchTransactions} title="Tải lại">
-            🔄
+            <Icon name="refresh" tone="blue" size={18} background={false} />
           </Button>
         </div>
       </Card>
@@ -126,7 +133,9 @@ export default function TransactionsPage() {
           <p style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>Đang tìm kiếm...</p>
         ) : transactions.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>📭</div>
+            <div style={{ marginBottom: 10 }}>
+              <Icon name="inbox" tone="slate" size={44} />
+            </div>
             Không tìm thấy giao dịch nào phù hợp.
           </div>
         ) : (
@@ -150,7 +159,7 @@ export default function TransactionsPage() {
                   <td>
                     {t.category ? (
                       <span style={styles.catBadge}>
-                        <span>{t.category.icon || "🏷️"}</span>
+                        <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
                         {t.category.name}
                       </span>
                     ) : (
@@ -182,7 +191,7 @@ export default function TransactionsPage() {
                   </td>
                   <td style={{ textAlign: "center", paddingRight: 18 }}>
                     <Button variant="danger" style={{ padding: "8px 12px" }} onClick={() => handleDelete(t._id)}>
-                      🗑️
+                      <Icon name="trash" tone="red" size={18} background={false} />
                     </Button>
                   </td>
                 </tr>
@@ -193,6 +202,16 @@ export default function TransactionsPage() {
       </Card>
     </div>
   );
+}
+
+function renderTxnCategoryIcon(category) {
+  const tone = category.type === "income" ? "green" : "amber";
+
+  if (category.icon && category.icon.trim()) {
+    return <span style={styles.customCatIcon}>{category.icon.trim()}</span>;
+  }
+
+  return <Icon name={category.type === "income" ? "arrowUpRight" : "arrowDown"} tone={tone} size={18} background={false} />;
 }
 
 const styles = {
@@ -241,4 +260,15 @@ const styles = {
     color: "var(--text-strong)",
     fontWeight: 600,
   },
+  catBadgeIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    display: "grid",
+    placeItems: "center",
+    background: "linear-gradient(140deg, rgba(124,58,237,0.16), rgba(14,165,233,0.12))",
+    border: "1px solid rgba(148,163,184,0.25)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
+  },
+  customCatIcon: { fontSize: 13, fontWeight: 700 },
 };

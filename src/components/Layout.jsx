@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { pageVariants } from "../utils/animations";
 import ChatbotWidget from "./ChatbotWidget";
+import Icon from "./ui/Icon";
 
 const palette = {
   bg: "var(--bg-primary)",
@@ -15,14 +16,14 @@ const palette = {
 };
 
 const navItems = [
-  { to: "/app", label: "Dashboard", icon: "📊", exact: true },
-  { to: "/app/transactions", label: "Transactions", icon: "📜" },
-  { to: "/app/categories", label: "Categories", icon: "🧩" },
-  { to: "/app/challenges", label: "Challenges", icon: "🏁" },
-  { to: "/app/my-challenges", label: "My Challenges", icon: "✅" },
-  { to: "/app/templates", label: "Templates", icon: "📋" },
-  { to: "/app/resources", label: "Resources", icon: "📚" },
-  { to: "/app/settings", label: "Cài đặt", icon: "⚙️" },
+  { to: "/app", label: "Dashboard", icon: "dashboard", tone: "brand", exact: true },
+  { to: "/app/transactions", label: "Transactions", icon: "receipt", tone: "blue" },
+  { to: "/app/categories", label: "Categories", icon: "puzzle", tone: "brand" },
+  { to: "/app/challenges", label: "Challenges", icon: "flag", tone: "amber" },
+  { to: "/app/my-challenges", label: "My Challenges", icon: "checkBadge", tone: "green" },
+  { to: "/app/templates", label: "Templates", icon: "clipboard", tone: "slate" },
+  { to: "/app/resources", label: "Resources", icon: "book", tone: "brand" },
+  { to: "/app/settings", label: "Cài đặt", icon: "gear", tone: "slate" },
 ];
 
 export default function Layout() {
@@ -55,18 +56,33 @@ export default function Layout() {
                 ...styles.navItem,
                 background: isActive
                   ? palette.primary
-                  : "rgba(255,255,255,0.04)",
+                  : "linear-gradient(140deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03))",
                 color: isActive ? "#0b1021" : palette.text,
                 border: isActive ? "1px solid rgba(124,58,237,0.35)" : `1px solid ${palette.border}`,
-                boxShadow: isActive ? "0 12px 30px rgba(14,165,233,0.28)" : "none",
+                boxShadow: isActive ? "0 12px 32px rgba(14,165,233,0.32)" : "0 10px 24px rgba(0,0,0,0.2)",
               })}
             >
-              <span style={{ marginRight: 10 }}>{item.icon}</span>
-              <span>{item.label}</span>
+              {({ isActive }) => {
+                const iconStyle = {
+                  ...styles.navIconWrap,
+                  ...(isActive ? styles.navIconActive : {}),
+                  ...(item.icon === "puzzle" && isActive ? styles.puzzleGlow : {}),
+                };
+                return (
+                  <>
+                    {isActive && <span style={styles.navGlow} />}
+                    <span style={iconStyle}>
+                      <Icon name={item.icon} tone={item.tone || "brand"} size={18} />
+                    </span>
+                    <span style={{ ...styles.navLabel, color: isActive ? "#0b1021" : palette.text }}>
+                      {item.label}
+                    </span>
+                  </>
+                );
+              }}
             </NavLink>
           ))}
         </nav>
-
         <div style={{ marginTop: "auto" }}>
           <button style={styles.logoutBtn} onClick={handleLogout}>
             Đăng xuất
@@ -141,12 +157,46 @@ const styles = {
   navItem: {
     display: "flex",
     alignItems: "center",
-    padding: "10px 14px",
+    padding: "11px 14px",
     borderRadius: 999,
     fontSize: 14,
-    marginBottom: 8,
-    transition: "transform 0.15s ease, background 0.2s ease",
+    transition: "transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease",
     textDecoration: "none",
+    gap: 12,
+    position: "relative",
+    overflow: "hidden",
+  },
+  navIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))",
+    display: "grid",
+    placeItems: "center",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.25)",
+    position: "relative",
+    zIndex: 1,
+  },
+  navIconActive: {
+    background: "rgba(11,16,33,0.16)",
+    border: "1px solid rgba(0,0,0,0.05)",
+  },
+  puzzleGlow: {
+    boxShadow: "0 0 0 6px rgba(59,130,246,0.08), 0 14px 26px rgba(14,165,233,0.35)",
+  },
+  navLabel: {
+    fontWeight: 700,
+    position: "relative",
+    zIndex: 1,
+  },
+  navGlow: {
+    position: "absolute",
+    inset: -6,
+    background: "radial-gradient(circle at 10% 30%, rgba(124,58,237,0.24), transparent 45%)",
+    filter: "blur(12px)",
+    pointerEvents: "none",
+    zIndex: 0,
   },
   logoutBtn: {
     marginTop: "auto",

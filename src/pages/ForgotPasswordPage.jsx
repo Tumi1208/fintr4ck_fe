@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { authApiHelpers } from "../api/auth";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
+import Icon from "../components/ui/Icon";
 
 const bgImage =
   "https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=1800&q=80";
@@ -98,13 +99,15 @@ export default function ForgotPasswordPage() {
 
               <div style={styles.footerLink}>
                 <Link to="/login" style={styles.link}>
-                  ← Quay lại đăng nhập
+                  <Icon name="arrowLeft" tone="slate" size={16} background={false} /> Quay lại đăng nhập
                 </Link>
               </div>
             </form>
           ) : (
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+              <div style={{ marginBottom: 16 }}>
+                <Icon name="check" tone="green" size={60} />
+              </div>
               <h3 style={{ color: "#4ade80", marginBottom: 8 }}>Thành công!</h3>
               <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>
                 Mật khẩu của bạn đã được cập nhật. <br /> Đang chuyển hướng về trang đăng nhập...
@@ -203,7 +206,15 @@ const styles = {
     border: "1px solid rgba(248,113,113,0.35)",
   },
   footerLink: { textAlign: "center", marginTop: 4 },
-  link: { color: "#bfdbfe", textDecoration: "none", fontSize: 14, fontWeight: 700 },
+  link: {
+    color: "#bfdbfe",
+    textDecoration: "none",
+    fontSize: 14,
+    fontWeight: 700,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+  },
   btnLink: {
     display: "inline-flex",
     padding: "12px 16px",

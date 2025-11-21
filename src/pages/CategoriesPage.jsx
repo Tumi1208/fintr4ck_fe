@@ -10,6 +10,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import InputField from "../components/ui/InputField";
+import Icon from "../components/ui/Icon";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -165,7 +166,7 @@ export default function CategoriesPage() {
 
               <InputField
                 label="Icon (tùy chọn)"
-                placeholder="VD: 💰, 🍔, 🏠"
+                placeholder="VD: ký hiệu riêng như $, A..."
                 value={form.icon}
                 onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
               />
@@ -191,7 +192,7 @@ function CategoryCard({ category, onEdit, onDelete }) {
     <div style={styles.catCard}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
         <div style={styles.catIcon}>
-          {category.icon || (category.type === "income" ? "💰" : "💸")}
+          {renderCategoryIcon(category)}
         </div>
         <div>
           <div style={styles.catName}>{category.name}</div>
@@ -209,15 +210,25 @@ function CategoryCard({ category, onEdit, onDelete }) {
       </div>
 
       <div style={{ marginTop: "auto", textAlign: "right" }}>
-        <button style={styles.iconBtn} onClick={onEdit}>
-          ✏️
+        <button style={styles.iconBtn} onClick={onEdit} aria-label="Sửa danh mục">
+          <Icon name="edit" tone="blue" size={18} background={false} />
         </button>
-        <button style={styles.iconBtn} onClick={onDelete}>
-          🗑️
+        <button style={styles.iconBtn} onClick={onDelete} aria-label="Xoá danh mục">
+          <Icon name="trash" tone="red" size={18} background={false} />
         </button>
       </div>
     </div>
   );
+}
+
+function renderCategoryIcon(category) {
+  const tone = category.type === "income" ? "green" : "amber";
+
+  if (category.icon && category.icon.trim()) {
+    return <span style={styles.customIcon}>{category.icon.trim()}</span>;
+  }
+
+  return <Icon name={category.type === "income" ? "arrowUpRight" : "arrowDown"} tone={tone} size={20} background={false} />;
 }
 
 const styles = {
@@ -256,15 +267,17 @@ const styles = {
     border: "1px solid rgba(148,163,184,0.15)",
   },
   catIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    backgroundColor: "rgba(14,165,233,0.15)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    background: "linear-gradient(135deg, rgba(124,58,237,0.2), rgba(14,165,233,0.14))",
+    border: "1px solid rgba(148,163,184,0.28)",
+    display: "grid",
+    placeItems: "center",
+    marginRight: 10,
+    boxShadow: "0 10px 22px rgba(0,0,0,0.25)",
   },
+  customIcon: { fontSize: 16, color: "var(--text-strong)", fontWeight: 700 },
   catName: {
     fontSize: 14,
     color: "var(--text-strong)",
@@ -328,11 +341,18 @@ const styles = {
     marginBottom: 4,
   },
   iconBtn: {
-    border: "none",
-    background: "transparent",
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "rgba(226,232,240,0.06)",
     cursor: "pointer",
     fontSize: 16,
-    marginLeft: 4,
-    color: "var(--text-muted)",
+    marginLeft: 6,
+    color: "var(--text-strong)",
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.15s ease",
   },
 };
