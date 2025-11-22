@@ -1,5 +1,5 @@
 // src/pages/DashboardPage.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGetSummary, apiCreateTransaction, apiGetTransactions } from "../api/transactions";
 import { apiGetCategories } from "../api/categories";
 import { apiGetExpenseBreakdown } from "../api/reports";
@@ -178,6 +178,7 @@ export default function DashboardPage() {
   const [isNarrow, setIsNarrow] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 1100 : true));
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [budgetForm, setBudgetForm] = useState({ categoryId: "", limitAmount: "" });
+  const quickFormRef = useRef(null);
 
   async function fetchAllData() {
     try {
@@ -207,6 +208,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Bộ lọc giao dịch theo khoảng thời gian (đặt sớm để dùng cho chart + widget)
   const filteredTransactions = useMemo(() => filterTransactionsByRange(transactions, dateRange), [transactions, dateRange]);
   const monthlyStats = useMemo(() => aggregateStatsForRange(transactions, dateRange), [transactions, dateRange]);
   const currentIncome = monthlyStats.current.income || 0;
@@ -234,8 +236,13 @@ export default function DashboardPage() {
         prev.type;
       agg.set(key, { name: name || prev.name, value: prev.value + (t.amount || 0), type });
     });
-    const labels = Array.from(agg.values()).map((b) => b.name);
-    const values = Array.from(agg.values()).map((b) => b.value);
+    const valuesArr = Array.from(agg.values());
+    const total = valuesArr.reduce((sum, item) => sum + item.value, 0) || 1;
+    const labels = valuesArr.map((b) => {
+      const pct = ((b.value / total) * 100).toFixed(1);
+      return `${b.name} · ${pct}%`;
+    });
+    const values = valuesArr.map((b) => b.value);
     const colors = Array.from(agg.values()).map((b) => (b.type === "income" ? "rgba(34,197,94,0.8)" : "rgba(248,113,113,0.8)"));
     return {
       labels,
@@ -268,6 +275,28 @@ export default function DashboardPage() {
     } catch (err) { setQuickError(err.message); }
   }
 
+  function focusQuickForm() {
+    if (quickFormRef.current) {
+      quickFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      const input = quickFormRef.current.querySelector("input, select, textarea");
+      if (input) input.focus();
+    }
+  }
+
+  function renderEmptyState(message = "Chưa có giao dịch trong khoảng này") {
+    return (
+      <div style={styles.emptyBox}>
+        <div style={styles.emptyIcon}>
+          <Icon name="inbox" tone="slate" size={20} />
+        </div>
+        <p style={styles.emptyText}>{message}</p>
+        <Button variant="ghost" style={styles.emptyBtn} onClick={focusQuickForm}>
+          Thêm giao dịch
+        </Button>
+      </div>
+    );
+  }
+
   function shuffleQuote() {
     setQuoteIndex((prev) => {
       const next = Math.floor(Math.random() * quotes.length);
@@ -277,6 +306,7 @@ export default function DashboardPage() {
 
   const balance = summary?.currentBalance ?? 0;
   const activeQuote = quotes[quoteIndex];
+  const hasData = filteredTransactions.length > 0;
   const monthKey = useMemo(() => {
     const d = dateRange?.start ? new Date(dateRange.start) : new Date();
     return d.toISOString().slice(0, 7);
@@ -525,7 +555,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            {chartData ? (
+            {hasData && chartData ? (
               <div style={chartType === "doughnut" ? styles.doughnutBox : styles.chartWrap}>
                 {chartType === "bar" ? (
                   <Bar
@@ -579,11 +609,12 @@ export default function DashboardPage() {
                 )}
               </div>
             ) : (
-              <p style={{ color: "var(--text-muted)" }}>Chưa có dữ liệu.</p>
+              renderEmptyState()
             )}
           </Card>
 
           <Card animate custom={2} title="⚡ Ghi nhanh giao dịch" style={{ ...styles.card, ...styles.wideCard }}>
+            <div ref={quickFormRef}>
             <form onSubmit={handleQuickAdd} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
               <div style={styles.formRow}>
                 <select
@@ -624,14 +655,19 @@ export default function DashboardPage() {
                 Thêm ngay
               </Button>
             </form>
+            </div>
           </Card>
 
           <Card animate custom={3} title="Ngân sách theo danh mục" style={{ ...styles.card, ...styles.wideCard }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ color: "var(--text-muted)", fontSize: 13 }}>Theo dõi chi tiêu trên hạn mức</span>
-              <Button size="sm" onClick={() => setBudgetModalOpen(true)}>Đặt ngân sách</Button>
+              <Button onClick={() => setBudgetModalOpen(true)} style={{ padding: "8px 10px", fontSize: 13 }}>
+                Đặt ngân sách
+              </Button>
             </div>
-            {budgetView.length === 0 ? (
+            {!hasData ? (
+              renderEmptyState()
+            ) : budgetView.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Chưa đặt ngân sách cho danh mục.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -656,30 +692,32 @@ export default function DashboardPage() {
 
           <Card animate custom={4} title="Giao dịch gần đây" style={{ ...styles.card, ...styles.wideCard }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
-              {recent.map((t) => (
-                <div key={t._id} style={styles.transactionRow}>
-                  <div style={styles.iconBox}>
-                    {renderTxnIcon(t)}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>
-                      {t.category?.name || "Uncategorized"}
+              {recent.map((t) => {
+                const isIncome = t.type === "income";
+                return (
+                  <div key={t._id} style={styles.transactionRow}>
+                    <div style={styles.iconBox}>
+                      {renderTxnIcon(t)}
                     </div>
-                    <div style={{ fontSize: 12, color: styles.lead.color }}>
-                      {new Date(t.date).toLocaleDateString()} • {t.note}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>
+                          {t.category?.name || "Uncategorized"}
+                        </div>
+                        <span style={styles.categoryChip}>{t.category?.name || "Chưa phân loại"}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: styles.lead.color }}>
+                        {new Date(t.date).toLocaleDateString()} • {t.note}
+                      </div>
+                    </div>
+                    <div style={{ ...styles.amountWrap, color: isIncome ? "#4ade80" : "#f87171" }}>
+                      <Icon name={isIncome ? "arrowUpRight" : "arrowDown"} tone={isIncome ? "green" : "red"} size={16} background={false} />
+                      {isIncome ? "+" : "-"}${t.amount.toLocaleString()}
                     </div>
                   </div>
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      color: t.type === "income" ? "#4ade80" : "#f87171",
-                    }}
-                  >
-                    {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
-                  </div>
-                </div>
-              ))}
-              {recent.length === 0 && <p style={{ color: "var(--text-muted)" }}>Chưa có giao dịch gần đây</p>}
+                );
+              })}
+              {recent.length === 0 && renderEmptyState("Chưa có giao dịch gần đây")}
             </div>
           </Card>
         </div>
@@ -874,6 +912,15 @@ const styles = {
     paddingBottom: 12,
     borderBottom: "1px solid rgba(148,163,184,0.15)",
   },
+  amountWrap: { display: "flex", alignItems: "center", gap: 6, fontWeight: 800 },
+  categoryChip: {
+    padding: "4px 8px",
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.06)",
+    color: "var(--text-muted)",
+    fontSize: 11,
+    border: "1px solid rgba(255,255,255,0.06)",
+  },
   progressBarOuter: {
     position: "relative",
     width: "100%",
@@ -923,6 +970,28 @@ const styles = {
     color: "var(--text-muted)",
     cursor: "pointer",
   },
+  emptyBox: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 18,
+    border: "1px dashed rgba(255,255,255,0.12)",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.02)",
+  },
+  emptyIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.06)",
+    display: "grid",
+    placeItems: "center",
+    color: "var(--text-muted)",
+  },
+  emptyText: { margin: 0, color: "var(--text-muted)", fontSize: 13 },
+  emptyBtn: { padding: "10px 12px", fontSize: 13 },
   iconBox: {
     width: 40,
     height: 40,
