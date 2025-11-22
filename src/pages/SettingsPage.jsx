@@ -15,6 +15,8 @@ import Badge from "../components/ui/Badge";
 import ModalDialog from "../components/ModalDialog";
 import { useDialog } from "../hooks/useDialog";
 
+const DISPLAY_NAME_KEY = "fintr4ck_displayName";
+
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
 
@@ -46,8 +48,10 @@ export default function SettingsPage() {
     async function init() {
       try {
         const data = await apiGetMe();
+        const stored = safeGetDisplayName();
+        const resolvedName = data.user?.displayName || data.user?.name || stored || "";
         setUser(data.user);
-        setName(data.user.name || "");
+        setName(resolvedName);
       } catch (err) {
         console.error(err);
       }
@@ -59,8 +63,14 @@ export default function SettingsPage() {
     try {
       setSavingProfile(true);
       setProfileMsg("");
-      const data = await apiUpdateProfile({ name });
-      setUser(data.user);
+      const payload = { name, displayName: name };
+      const data = await apiUpdateProfile(payload);
+      const updatedUser = data.user || {};
+      const resolvedName = updatedUser.displayName || updatedUser.name || name;
+      const normalizedUser = { ...updatedUser, name: resolvedName, displayName: resolvedName };
+      setUser(normalizedUser);
+      setName(resolvedName);
+      safeSetDisplayName(resolvedName);
       setProfileMsg("Đã lưu thay đổi");
     } catch (err) {
       setProfileMsg(err.message || "Không thể lưu");
@@ -139,40 +149,40 @@ export default function SettingsPage() {
     <PageTransition>
       <div style={styles.head}>
         <div>
-          <p style={styles.kicker}>Hồ sơ</p>
+          <p style={styles.kicker}>Tài khoản</p>
           <h1 style={styles.pageTitle}>Settings</h1>
-          <p style={styles.lead}>Quản lý thông tin cá nhân, bảo mật và tuỳ chọn hiển thị.</p>
+          <p style={styles.lead}>Thông tin cơ bản và chỉnh sửa hồ sơ. Quản lý bảo mật tài khoản.</p>
         </div>
         {user && <Badge tone="info">ID: {user._id?.slice(-6) || "user"}</Badge>}
       </div>
 
-      <Card animate custom={0} title="Profile Information" style={styles.card}>
-        <p style={styles.description}>Cập nhật tên hiển thị. Email và mã tài khoản chỉ xem.</p>
-        <div style={styles.profileSummary}>
-          <div style={styles.avatar}>{(user?.name || "F")[0]?.toUpperCase()}</div>
-          <div>
-            <div style={styles.summaryText}>{user?.name || "Chưa đặt tên"}</div>
-            <div style={styles.summarySub}>{user?.email || "Đang tải email..."}</div>
-            <div style={styles.summaryMeta}>
-              <span>Account ID: {user?._id || "..."}</span>
-              <span>{user?.createdAt ? `Created: ${new Date(user.createdAt).toLocaleDateString()}` : "Created: --"}</span>
-              <span>Role: {user?.role || "user"}</span>
-              <span>Phiên: đang đăng nhập</span>
+      <Card animate custom={0} title="Tài khoản" style={styles.card}>
+        <p style={styles.description}>Thông tin cơ bản và chỉnh sửa hồ sơ.</p>
+
+        <div style={styles.accountRow}>
+          <div style={styles.avatarCircle}>{(user?.name || user?.email || "F")[0]?.toUpperCase()}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={styles.accountName}>{user?.name || "Chưa đặt tên"}</div>
+            <div style={styles.accountEmail}>{user?.email || "Đang tải email..."}</div>
+            <div style={styles.accountChips}>
+              <span style={styles.chip}>{user?.role ? `Role: ${user.role}` : "Role: user"}</span>
+              <span style={styles.chip}>
+                {user?.createdAt ? `Tạo: ${formatDate(user.createdAt)}` : "Tạo: --"}
+              </span>
             </div>
           </div>
         </div>
 
         <div style={styles.profileRow}>
-          <div style={{ flex: 1 }}>
+          <div style={styles.field}>
             <InputField
-              label="Name"
+              label="Tên hiển thị"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Tên hiển thị"
+              placeholder="Nhập tên bạn muốn hiển thị"
             />
           </div>
-
-          <div style={{ flex: 1 }}>
+          <div style={styles.field}>
             <InputField label="Email" value={user?.email || ""} disabled />
           </div>
         </div>
@@ -183,6 +193,9 @@ export default function SettingsPage() {
           <Button onClick={handleProfileSave} disabled={savingProfile}>
             {savingProfile ? "..." : "Lưu thay đổi"}
           </Button>
+        </div>
+
+        <div style={{ marginTop: 10 }}>
           <Button
             variant="ghost"
             onClick={() => {
@@ -305,6 +318,30 @@ export default function SettingsPage() {
   );
 }
 
+function formatDate(value) {
+  try {
+    return new Date(value).toLocaleDateString("vi-VN");
+  } catch {
+    return "--";
+  }
+}
+
+function safeGetDisplayName() {
+  try {
+    return localStorage.getItem(DISPLAY_NAME_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function safeSetDisplayName(value) {
+  try {
+    localStorage.setItem(DISPLAY_NAME_KEY, value);
+  } catch {
+    // ignore
+  }
+}
+
 function getStrength(value) {
   let score = 0;
   if (value.length >= 8) score++;
@@ -342,30 +379,38 @@ const styles = {
   card: {
     marginBottom: 16,
   },
-  profileSummary: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    padding: "10px 12px",
-    borderRadius: 14,
-    background: "rgba(226,232,240,0.05)",
-    border: "1px solid rgba(148,163,184,0.12)",
-    marginBottom: 12,
-  },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    background: "linear-gradient(135deg, rgba(99,102,241,0.95), rgba(14,165,233,0.9))",
+  avatarCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, rgba(124,58,237,0.95), rgba(14,165,233,0.95))",
     display: "grid",
     placeItems: "center",
     fontWeight: 800,
     color: "#0b1021",
-    fontSize: 18,
+    fontSize: 20,
+    boxShadow: "0 14px 32px rgba(14,165,233,0.32)",
   },
-  summaryText: { fontWeight: 800, color: "var(--text-strong)", fontSize: 16 },
-  summarySub: { color: "var(--text-muted)", fontSize: 13 },
-  summaryMeta: { color: "var(--text-muted)", fontSize: 12, display: "flex", gap: 12 },
+  accountRow: {
+    display: "flex",
+    gap: 14,
+    alignItems: "center",
+    padding: "10px 0 14px",
+    borderBottom: "1px solid rgba(148,163,184,0.16)",
+    marginBottom: 12,
+  },
+  accountName: { fontWeight: 800, color: "var(--text-strong)", fontSize: 16 },
+  accountEmail: { color: "var(--text-muted)", fontSize: 13 },
+  accountChips: { display: "flex", gap: 8, flexWrap: "wrap" },
+  chip: {
+    padding: "6px 10px",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    color: "var(--text-muted)",
+    fontSize: 12,
+    fontWeight: 600,
+  },
   cardTitle: {
     margin: 0,
     marginBottom: 8,
