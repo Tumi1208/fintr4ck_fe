@@ -61,14 +61,14 @@ function summarizeChallenges(list) {
   let nearest = null;
   list.forEach((i) => {
     const pct = progressPercent(i);
-    if (!nearest || pct > nearest.progress) nearest = { name: i.challenge?.title || "Challenge", progress: pct };
+    if (!nearest || pct > nearest.progress) nearest = { name: i.challenge?.title || "Thử thách", progress: pct };
   });
   return { participatingCount, bestStreak, totalCheckInsThisMonth, nearest };
 }
 
 const SORT_PRESETS = [
   { value: "progress", label: "Gần hoàn thành nhất" },
-  { value: "streak", label: "Streak cao nhất" },
+  { value: "streak", label: "Chuỗi ngày cao nhất" },
   { value: "joined", label: "Mới tham gia" },
   { value: "remaining", label: "Còn ít ngày nhất" },
 ];
@@ -104,7 +104,9 @@ export default function MyChallengesPage() {
   const [error, setError] = useState("");
   const [checkingId, setCheckingId] = useState("");
   const [leavingId, setLeavingId] = useState("");
+  const [confirmLeaveId, setConfirmLeaveId] = useState("");
   const [sortPreset, setSortPreset] = useState("progress");
+  const [toasts, setToasts] = useState([]);
 
   async function loadData() {
     try {
@@ -130,6 +132,7 @@ export default function MyChallengesPage() {
   async function handleCheckIn(id) {
     try {
       setCheckingId(id);
+      const prevItem = items.find((i) => i._id === id);
       const res = await fetch(`${API_BASE}/challenges/my-challenges/${id}/check-in`, {
         method: "POST",
         headers: {
@@ -139,6 +142,8 @@ export default function MyChallengesPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Không thể check-in");
+      const prevProgress = prevItem ? progressPercent(prevItem) : 0;
+      const newProgress = progressPercent({ ...prevItem, ...data });
       const streak = data.currentStreak || 0;
       alert(getMotivationMessageForStreak(streak));
       setItems((prev) =>
@@ -153,6 +158,15 @@ export default function MyChallengesPage() {
             : i,
         ),
       );
+      const milestonesHit = [
+        { percent: 25, label: "Bronze Spark" },
+        { percent: 50, label: "Silver Flow" },
+        { percent: 75, label: "Gold Peak" },
+      ].filter((m) => prevProgress < m.percent && newProgress >= m.percent);
+      if (milestonesHit.length > 0) {
+        const top = milestonesHit[milestonesHit.length - 1];
+        addToast(`Bạn vừa đạt ${top.label} 🎉`);
+      }
     } catch (err) {
       alert(err.message);
     } finally {
@@ -177,12 +191,20 @@ export default function MyChallengesPage() {
     }
   }
 
+  function addToast(message) {
+    const id = `${Date.now()}-${Math.random()}`;
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3200);
+  }
+
   return (
     <PageTransition style={styles.container}>
       <div style={styles.header}>
         <div>
-          <p style={styles.kicker}>Challenge</p>
-          <h1 style={styles.title}>Challenge của tôi</h1>
+          <p style={styles.kicker}>Thử thách</p>
+          <h1 style={styles.title}>Thử thách của tôi</h1>
           <p style={styles.lead}>Xem tiến độ, check-in và huỷ tham gia nếu cần.</p>
         </div>
         <div style={styles.headerActions}>
@@ -215,10 +237,19 @@ export default function MyChallengesPage() {
       {error && <div style={styles.error}>{error}</div>}
 
       <div style={styles.tableCard}>
+        {toasts.length > 0 && (
+          <div style={styles.toastStack}>
+            {toasts.map((t) => (
+              <div key={t.id} style={styles.toast}>
+                {t.message}
+              </div>
+            ))}
+          </div>
+        )}
         <div style={styles.tableWrapper}>
           <div style={styles.tableHead}>
-            <div style={styles.colWide}>Challenge</div>
-            <div style={styles.colStreak}>Streak</div>
+            <div style={styles.colWide}>Thử thách</div>
+            <div style={styles.colStreak}>Chuỗi ngày</div>
             <div style={styles.colStatus}>Trạng thái</div>
             <div style={styles.colActions}>Hành động</div>
           </div>
@@ -243,7 +274,7 @@ export default function MyChallengesPage() {
             <div key={item._id} style={styles.tableRow}>
               <div style={styles.colWide}>
                 <div style={styles.titleRow}>
-                  <div style={styles.cardTitle}>{item.challenge?.title || "Challenge"}</div>
+                  <div style={styles.cardTitle}>{item.challenge?.title || "Thử thách"}</div>
                   {item.status === "ACTIVE" && (
                     <span
                       style={{
@@ -256,7 +287,7 @@ export default function MyChallengesPage() {
                   )}
                 </div>
                 <div style={styles.mutedSmall}>
-                  {completed}/{duration} ngày · Streak: {item.currentStreak}
+                  {completed}/{duration} ngày · Chuỗi ngày: {item.currentStreak}
                 </div>
 
                 <div style={styles.roadmapContainer}>
@@ -286,7 +317,7 @@ export default function MyChallengesPage() {
                               color: progress >= m.percent ? "#bbf7d0" : "#c7d2fe",
                             }}
                           >
-                            {m.label}
+                            {progress >= m.percent ? `${m.label} ✓` : m.label}
                           </div>
                         </div>
                       ))}
@@ -300,12 +331,12 @@ export default function MyChallengesPage() {
                 {item.currentStreak > 0 ? (
                   <StreakBadge streak={item.currentStreak} />
                 ) : (
-                  <span style={styles.mutedSmall}>Chưa có streak</span>
+                  <span style={styles.mutedSmall}>Chưa có chuỗi</span>
                 )}
               </div>
 
               <div style={styles.colStatus}>
-                <span style={{ ...styles.badge, background: badgeBg(item.status) }}>{item.status}</span>
+                <span style={{ ...styles.badge, background: badgeBg(item.status) }}>{statusLabel(item.status)}</span>
               </div>
 
               <div style={styles.colActions}>
@@ -328,7 +359,7 @@ export default function MyChallengesPage() {
                 )}
                 <button
                   style={{ ...styles.leaveBtn, opacity: leavingId === item._id ? 0.7 : 1 }}
-                  onClick={() => handleLeave(item._id)}
+                  onClick={() => setConfirmLeaveId(item._id)}
                   disabled={leavingId === item._id}
                 >
                   {leavingId === item._id ? "Đang huỷ..." : "Huỷ tham gia"}
@@ -340,6 +371,35 @@ export default function MyChallengesPage() {
         </div>
         {!loading && items.length === 0 && <div style={styles.info}>Bạn chưa tham gia challenge nào.</div>}
       </div>
+
+      {confirmLeaveId && (
+        <div style={styles.modalOverlay} role="dialog" aria-modal="true">
+          <div style={styles.modalCard}>
+            <div style={styles.modalTitle}>Huỷ sẽ reset chuỗi ngày. Bạn chắc chắn huỷ?</div>
+            <div style={styles.modalActions}>
+              <button
+                style={styles.modalCancel}
+                onClick={() => {
+                  setConfirmLeaveId("");
+                }}
+              >
+                Để sau
+              </button>
+              <button
+                style={{ ...styles.modalConfirm, opacity: leavingId === confirmLeaveId ? 0.8 : 1 }}
+                onClick={() => {
+                  const targetId = confirmLeaveId;
+                  setConfirmLeaveId("");
+                  handleLeave(targetId);
+                }}
+                disabled={leavingId === confirmLeaveId}
+              >
+                Huỷ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageTransition>
   );
 }
@@ -354,7 +414,7 @@ function OverviewStrip({ items }) {
         <div style={styles.overviewValue}>{participatingCount}</div>
       </div>
       <div style={styles.overviewCard}>
-        <div style={styles.overviewLabel}>Streak dài nhất</div>
+        <div style={styles.overviewLabel}>Chuỗi ngày dài nhất</div>
         <div style={styles.overviewValue}>{bestStreak} ngày</div>
       </div>
       <div style={styles.overviewCard}>
@@ -375,6 +435,13 @@ function badgeBg(status) {
   if (status === "COMPLETED") return "rgba(34,197,94,0.2)";
   if (status === "FAILED") return "rgba(239,68,68,0.2)";
   return "rgba(99,102,241,0.2)";
+}
+
+function statusLabel(status) {
+  if (status === "ACTIVE") return "Đang diễn ra";
+  if (status === "COMPLETED") return "Hoàn thành";
+  if (status === "FAILED") return "Thất bại";
+  return status || "Khác";
 }
 
 const styles = {
@@ -432,12 +499,12 @@ const styles = {
     cursor: "not-allowed",
   },
   leaveBtn: {
-    padding: "10px 12px",
+    padding: "8px 10px",
     borderRadius: 10,
-    border: "1px solid rgba(239,68,68,0.35)",
-    background: "rgba(239,68,68,0.15)",
+    border: "1px solid rgba(239,68,68,0.3)",
+    background: "rgba(239,68,68,0.1)",
     color: "#fecdd3",
-    fontWeight: 800,
+    fontWeight: 700,
     cursor: "pointer",
     width: "100%",
   },
@@ -626,5 +693,62 @@ const styles = {
     color: "#0b1021",
     border: "1px solid rgba(148,163,184,0.25)",
     boxShadow: "0 8px 20px rgba(99,102,241,0.35)",
+  },
+  toastStack: {
+    position: "fixed",
+    right: 16,
+    top: 80,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    zIndex: 50,
+  },
+  toast: {
+    background: "rgba(34,197,94,0.12)",
+    border: "1px solid rgba(34,197,94,0.5)",
+    color: "#bbf7d0",
+    padding: "10px 12px",
+    borderRadius: 12,
+    fontWeight: 800,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+  },
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 40,
+    padding: 16,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 360,
+    background: "rgba(20,25,45,0.96)",
+    border: "1px solid rgba(148,163,184,0.2)",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 12px 30px rgba(0,0,0,0.4)",
+  },
+  modalTitle: { color: "var(--text-strong)", fontSize: 14, fontWeight: 800, marginBottom: 12, lineHeight: 1.4 },
+  modalActions: { display: "flex", justifyContent: "flex-end", gap: 8 },
+  modalCancel: {
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "rgba(255,255,255,0.06)",
+    color: "var(--text-strong)",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  modalConfirm: {
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(239,68,68,0.5)",
+    background: "rgba(239,68,68,0.18)",
+    color: "#fecdd3",
+    fontWeight: 800,
+    cursor: "pointer",
   },
 };
