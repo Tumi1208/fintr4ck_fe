@@ -47,6 +47,25 @@ function computeCheckedInToday(userChallenge) {
   return isSameLocalDay(last, new Date());
 }
 
+function progressPercent(item) {
+  const duration = item.challenge?.durationDays || 1;
+  const completed = item.completedDays ?? item.currentStreak ?? 0;
+  return Math.min(100, Math.round((completed / duration) * 100));
+}
+
+function summarizeChallenges(list) {
+  const participatingCount = list.filter((i) => i.status === "ACTIVE").length;
+  const bestStreak = list.reduce((max, i) => Math.max(max, i.currentStreak || 0), 0);
+  // No per-day history available; approximate month check-ins by total completed days.
+  const totalCheckInsThisMonth = list.reduce((sum, i) => sum + (i.completedDays ?? i.currentStreak ?? 0), 0);
+  let nearest = null;
+  list.forEach((i) => {
+    const pct = progressPercent(i);
+    if (!nearest || pct > nearest.progress) nearest = { name: i.challenge?.title || "Challenge", progress: pct };
+  });
+  return { participatingCount, bestStreak, totalCheckInsThisMonth, nearest };
+}
+
 export default function MyChallengesPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +154,8 @@ export default function MyChallengesPage() {
         </div>
       </div>
 
+      <OverviewStrip items={items} />
+
       {loading && <div style={styles.info}>Đang tải...</div>}
       {error && <div style={styles.error}>{error}</div>}
 
@@ -150,7 +171,7 @@ export default function MyChallengesPage() {
         {items.map((item) => {
           const duration = item.challenge?.durationDays || 1;
           const completed = item.completedDays ?? item.currentStreak ?? 0;
-          const progress = Math.min(100, Math.round((completed / duration) * 100));
+          const progress = progressPercent(item);
           const milestones = [
             { key: "bronze", label: "Bronze Spark", percent: 25 },
             { key: "silver", label: "Silver Flow", percent: 50 },
@@ -265,6 +286,33 @@ export default function MyChallengesPage() {
         {!loading && items.length === 0 && <div style={styles.info}>Bạn chưa tham gia challenge nào.</div>}
       </div>
     </PageTransition>
+  );
+}
+
+function OverviewStrip({ items }) {
+  const { participatingCount, bestStreak, totalCheckInsThisMonth, nearest } = summarizeChallenges(items || []);
+
+  return (
+    <div style={styles.overviewRow}>
+      <div style={styles.overviewCard}>
+        <div style={styles.overviewLabel}>Đang tham gia</div>
+        <div style={styles.overviewValue}>{participatingCount}</div>
+      </div>
+      <div style={styles.overviewCard}>
+        <div style={styles.overviewLabel}>Streak dài nhất</div>
+        <div style={styles.overviewValue}>{bestStreak} ngày</div>
+      </div>
+      <div style={styles.overviewCard}>
+        <div style={styles.overviewLabel}>Check-in tháng này</div>
+        <div style={styles.overviewValue}>{totalCheckInsThisMonth}</div>
+      </div>
+      <div style={styles.overviewCard}>
+        <div style={styles.overviewLabel}>Gần hoàn thành</div>
+        <div style={styles.overviewValue}>
+          {nearest ? `${nearest.name} (${nearest.progress}%)` : "Chưa có"}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -479,4 +527,19 @@ const styles = {
     color: "#bbf7d0",
     borderColor: "rgba(34,197,94,0.4)",
   },
+  overviewRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 10,
+    margin: "4px 0 10px",
+  },
+  overviewCard: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid rgba(148,163,184,0.1)",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.15)",
+  },
+  overviewLabel: { color: "var(--text-muted)", fontSize: 12, marginBottom: 2, fontWeight: 700 },
+  overviewValue: { color: "var(--text-strong)", fontSize: 16, fontWeight: 800 },
 };
