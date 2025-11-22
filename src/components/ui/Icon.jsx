@@ -187,6 +187,12 @@ const glyphs = {
       <path d="M10.5 13.6h4.2" strokeOpacity="0.65" />
     </>
   ),
+  bookmark: ({ stroke, fill }) => (
+    <>
+      <path d="M9 6.7h6a1.3 1.3 0 0 1 1.3 1.3v10l-4.3-2.6a1.2 1.2 0 0 0-1.2 0L7.5 18V8a1.3 1.3 0 0 1 1.3-1.3Z" />
+      <path d="m10.5 9.4 1.5 1 1.5-1" stroke={fill} strokeWidth="1.4" />
+    </>
+  ),
   gear: () => (
     <>
       <circle cx="12" cy="12" r="2.5" />

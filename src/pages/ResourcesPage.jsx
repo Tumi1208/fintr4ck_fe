@@ -8,6 +8,15 @@ export default function ResourcesPage() {
   const [searchValue, setSearchValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [savedResourceIds, setSavedResourceIds] = useState(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = window.localStorage.getItem("fintr4ck_saved_resources");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const resources = [
     {
@@ -73,23 +82,41 @@ export default function ResourcesPage() {
 
   const filteredResources = useMemo(() => {
     return resources.filter((item) => {
-      const matchesType = typeFilter === "all" || item.type === typeFilter;
+      const isSaved = savedResourceIds.includes(item.id);
+      if (typeFilter === "saved" && !isSaved) return false;
+      const matchesType = typeFilter === "all" || typeFilter === "saved" || item.type === typeFilter;
       if (!searchTerm) return matchesType;
       const haystack = `${item.title} ${item.desc}`.toLowerCase();
       return matchesType && haystack.includes(searchTerm);
     });
-  }, [resources, searchTerm, typeFilter]);
+  }, [resources, searchTerm, typeFilter, savedResourceIds]);
 
   const filters = [
     { label: "Tất cả", value: "all" },
     { label: "Video", value: "video" },
     { label: "Bài viết", value: "article" },
     { label: "Công cụ", value: "tool" },
+    { label: "Đã lưu", value: "saved" },
   ];
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [typeFilter]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("fintr4ck_saved_resources", JSON.stringify(savedResourceIds));
+    } catch {
+      // ignore write errors
+    }
+  }, [savedResourceIds]);
+
+  const toggleBookmark = (id) => {
+    setSavedResourceIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      return [...prev, id];
+    });
+  };
 
   function getTagMeta(type) {
     if (type === "video") return { label: "Video hướng dẫn", icon: "play", tone: "brand" };
@@ -145,6 +172,26 @@ export default function ResourcesPage() {
           >
             <div style={styles.thumbWrapper}>
               <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
+              <button
+                type="button"
+                aria-label={savedResourceIds.includes(item.id) ? "Bỏ lưu" : "Lưu"}
+                title={savedResourceIds.includes(item.id) ? "Bỏ lưu" : "Lưu"}
+                style={{
+                  ...styles.bookmarkBtn,
+                  ...(savedResourceIds.includes(item.id) ? styles.bookmarkBtnActive : {}),
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleBookmark(item.id);
+                }}
+              >
+                <Icon
+                  name="bookmark"
+                  size={18}
+                  tone={savedResourceIds.includes(item.id) ? "amber" : "slate"}
+                  background={false}
+                />
+              </button>
               {(() => {
                 const meta = getTagMeta(item.type);
                 return (
@@ -262,6 +309,26 @@ const styles = {
     backgroundColor: "var(--bg-primary)",
     overflow: "hidden",
     borderRadius: 16,
+  },
+  bookmarkBtn: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(5,8,20,0.45)",
+    backdropFilter: "blur(8px)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    transition: "all 0.18s ease",
+  },
+  bookmarkBtnActive: {
+    backgroundColor: "rgba(250,204,21,0.14)",
+    borderColor: "rgba(250,204,21,0.36)",
+    boxShadow: "0 8px 20px rgba(250,204,21,0.25)",
   },
   thumb: {
     width: "100%",
