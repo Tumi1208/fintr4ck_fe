@@ -1,10 +1,14 @@
 // src/pages/ResourcesPage.jsx
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PageTransition from "../components/PageTransition";
 import Card from "../components/ui/Card";
 import Icon from "../components/ui/Icon";
 
 export default function ResourcesPage() {
+  const [searchValue, setSearchValue] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+
   const resources = [
     {
       id: 1,
@@ -48,6 +52,33 @@ export default function ResourcesPage() {
     }
   ];
 
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      setSearchTerm(searchValue.trim().toLowerCase());
+    }, 300);
+    return () => clearTimeout(debounce);
+  }, [searchValue]);
+
+  const filteredResources = useMemo(() => {
+    return resources.filter((item) => {
+      const matchesType = typeFilter === "all" || item.type === typeFilter;
+      if (!searchTerm) return matchesType;
+      const haystack = `${item.title} ${item.desc}`.toLowerCase();
+      return matchesType && haystack.includes(searchTerm);
+    });
+  }, [resources, searchTerm, typeFilter]);
+
+  const filters = [
+    { label: "Tất cả", value: "all" },
+    { label: "Video", value: "video" },
+    { label: "Bài viết", value: "article" },
+    { label: "Công cụ", value: "tool" },
+  ];
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [typeFilter]);
+
   function getTagMeta(type) {
     if (type === "video") return { label: "Video hướng dẫn", icon: "play", tone: "brand" };
     if (type === "article") return { label: "Bài viết chọn lọc", icon: "article", tone: "amber" };
@@ -61,9 +92,35 @@ export default function ResourcesPage() {
         <h1 style={styles.pageTitle}>Góc Kiến Thức Tài Chính</h1>
       </div>
       <p style={styles.subTitle}>Tổng hợp nguồn uy tín giúp bạn nâng cao tư duy tài chính.</p>
+      <div style={styles.controls}>
+        <div style={styles.searchBox}>
+          <Icon name="search" size={18} tone="muted" background={false} />
+          <input
+            style={styles.searchInput}
+            placeholder="Tìm video/bài viết/công cụ..."
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+          />
+        </div>
+        <div style={styles.filters}>
+          {filters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setTypeFilter(filter.value)}
+              style={{
+                ...styles.filterPill,
+                ...(typeFilter === filter.value ? styles.filterPillActive : {}),
+              }}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div style={styles.grid}>
-        {resources.map((item, idx) => (
+        {filteredResources.map((item, idx) => (
           <Card key={item.id} style={styles.card} animate custom={idx}>
             <a href={item.link} target="_blank" rel="noreferrer" style={styles.anchor}>
               <div style={styles.thumbWrapper}>
@@ -103,6 +160,49 @@ const styles = {
   titleRow: { display: "flex", alignItems: "center", gap: 10 },
   pageTitle: { fontSize: 26, color: "var(--text-strong)", marginBottom: 4, fontWeight: 800 },
   subTitle: { fontSize: 14, color: "var(--text-muted)", marginBottom: 18 },
+  controls: {
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  searchBox: {
+    flex: "1 1 260px",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 12px",
+    borderRadius: 14,
+    background: "linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))",
+    border: "1px solid rgba(255,255,255,0.08)",
+  },
+  searchInput: {
+    width: "100%",
+    background: "transparent",
+    border: "none",
+    outline: "none",
+    color: "var(--text-strong)",
+    fontSize: 14,
+  },
+  filters: { display: "flex", gap: 8, flexWrap: "wrap" },
+  filterPill: {
+    border: "1px solid rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    color: "var(--text-muted)",
+    padding: "8px 14px",
+    borderRadius: 999,
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: 13,
+    transition: "all 0.2s ease",
+  },
+  filterPillActive: {
+    background: "linear-gradient(120deg, #5eead4, #38bdf8)",
+    color: "#0b1222",
+    borderColor: "transparent",
+    boxShadow: "0 10px 30px rgba(56,189,248,0.25)",
+  },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
