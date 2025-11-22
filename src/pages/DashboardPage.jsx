@@ -13,6 +13,7 @@ import Badge from "../components/ui/Badge";
 import Icon from "../components/ui/Icon";
 import PageTransition from "../components/PageTransition";
 import { globalStyles } from "../utils/animations";
+import { getBudgets, saveBudget } from "../utils/budgets";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -124,12 +125,15 @@ export default function DashboardPage() {
   const [breakdown, setBreakdown] = useState([]);
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [quickForm, setQuickForm] = useState({ type: "expense", categoryId: "", note: "", amount: "" });
   const [quickError, setQuickError] = useState("");
   const [chartType, setChartType] = useState("bar");
   const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * quotes.length));
   const [isNarrow, setIsNarrow] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 1100 : true));
+  const [budgetModalOpen, setBudgetModalOpen] = useState(false);
+  const [budgetForm, setBudgetForm] = useState({ categoryId: "", limitAmount: "" });
 
   async function fetchAllData() {
     try {
@@ -142,6 +146,7 @@ export default function DashboardPage() {
       setBreakdown(Array.isArray(bre) ? bre : (bre.breakdown || []));
       const list = Array.isArray(txs) ? txs : (txs.transactions || []);
       setTransactions(list);
+      setBudgets(getBudgets());
     } catch (err) { console.error(err); }
   }
 
@@ -217,6 +222,44 @@ export default function DashboardPage() {
   const activeQuote = quotes[quoteIndex];
 
   const monthlyStats = useMemo(() => aggregateMonthlyStats(transactions), [transactions]);
+  const monthKey = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
+  const budgetView = useMemo(() => {
+    if (!budgets.length) return [];
+    const currentStart = new Date(monthKey + "-01T00:00:00");
+    const nextMonth = new Date(currentStart);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const expenseMap = new Map();
+    transactions.forEach((t) => {
+      if (t.type !== "expense") return;
+      const d = new Date(t.date);
+      if (Number.isNaN(d.getTime())) return;
+      if (d < currentStart || d >= nextMonth) return;
+      const key = t.category?._id || t.categoryId;
+      if (!key) return;
+      expenseMap.set(key, (expenseMap.get(key) || 0) + t.amount);
+    });
+    const catName = (id) => categories.find((c) => c._id === id)?.name || id;
+    return budgets
+      .filter((b) => b.period === "monthly" && (!b.monthKey || b.monthKey === monthKey))
+      .map((b) => {
+        const spent = expenseMap.get(b.categoryId) || 0;
+        const ratio = b.limitAmount > 0 ? Math.min(spent / b.limitAmount, 2) : 0;
+        let tone = "#22c55e";
+        if (ratio >= 1) tone = "#ef4444";
+        else if (ratio >= 0.8) tone = "#f59e0b";
+        return {
+          ...b,
+          name: catName(b.categoryId),
+          spent,
+          ratio,
+          tone,
+          over: spent > b.limitAmount,
+        };
+      })
+      .sort((a, b) => b.spent - a.spent)
+      .slice(0, 5);
+  }, [budgets, categories, monthKey, transactions]);
 
   const kpiCards = useMemo(() => {
     const { current, previous } = monthlyStats;
@@ -260,6 +303,21 @@ export default function DashboardPage() {
       },
     ];
   }, [monthlyStats]);
+
+  function handleSaveBudget(e) {
+    e.preventDefault();
+    if (!budgetForm.categoryId || !budgetForm.limitAmount) return;
+    const payload = saveBudget({
+      categoryId: budgetForm.categoryId,
+      limitAmount: Number(budgetForm.limitAmount),
+      period: "monthly",
+      monthKey,
+    });
+    setBudgets(getBudgets());
+    setBudgetForm({ categoryId: "", limitAmount: "" });
+    setBudgetModalOpen(false);
+    return payload;
+  }
 
   function renderTxnIcon(t) {
     const iconName = t.category?.icon;
@@ -329,17 +387,17 @@ export default function DashboardPage() {
                 <div>
                   <div style={styles.balanceValue}>${balance.toLocaleString("en-US")}</div>
                   <div style={styles.balanceHint}>Tổng cộng sau mọi giao dịch</div>
+                </div>
+                <div style={styles.badgeStack}>
+                  <Badge tone="success">Thu nhập +${totalIncome.toLocaleString("en-US")}</Badge>
+                  <Badge tone="danger">Chi tiêu -${totalExpense.toLocaleString("en-US")}</Badge>
+                </div>
               </div>
-              <div style={styles.badgeStack}>
-                <Badge tone="success">Thu nhập +${totalIncome.toLocaleString("en-US")}</Badge>
-                <Badge tone="danger">Chi tiêu -${totalExpense.toLocaleString("en-US")}</Badge>
-              </div>
-            </div>
-            <div style={styles.quoteBox}>
-              <div>
-                <div style={styles.quoteLabel}>{activeQuote.author}</div>
-                <div style={styles.quoteText}>“{activeQuote.text}”</div>
-              </div>
+              <div style={styles.quoteBox}>
+                <div>
+                  <div style={styles.quoteLabel}>{activeQuote.author}</div>
+                  <div style={styles.quoteText}>“{activeQuote.text}”</div>
+                </div>
               <button type="button" style={styles.quoteBtn} onClick={shuffleQuote}>
                 <Icon name="spark" tone="blue" size={16} background={false} /> Quote khác
               </button>
@@ -466,7 +524,35 @@ export default function DashboardPage() {
             </form>
           </Card>
 
-          <Card animate custom={3} title="Giao dịch gần đây" style={{ ...styles.card, ...styles.wideCard }}>
+          <Card animate custom={3} title="Ngân sách theo danh mục" style={{ ...styles.card, ...styles.wideCard }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ color: "var(--text-muted)", fontSize: 13 }}>Theo dõi chi tiêu trên hạn mức</span>
+              <Button size="sm" onClick={() => setBudgetModalOpen(true)}>Đặt ngân sách</Button>
+            </div>
+            {budgetView.length === 0 ? (
+              <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Chưa đặt ngân sách cho danh mục.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {budgetView.map((b) => (
+                  <div key={b.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>{b.name}</div>
+                      <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>
+                        {formatCurrency(b.spent)} / {formatCurrency(b.limitAmount)}
+                      </div>
+                    </div>
+                    <div style={styles.progressBarOuter}>
+                      <div style={{ ...styles.progressBarInner, width: `${Math.min(b.ratio * 100, 200)}%`, background: b.tone }} />
+                      <span style={styles.progressLabel}>{(b.ratio * 100).toFixed(0)}%</span>
+                    </div>
+                    {b.over && <Badge tone="danger">Vượt mức</Badge>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card animate custom={4} title="Giao dịch gần đây" style={{ ...styles.card, ...styles.wideCard }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
               {recent.map((t) => (
                 <div key={t._id} style={styles.transactionRow}>
@@ -496,6 +582,39 @@ export default function DashboardPage() {
           </Card>
         </div>
         </>
+      )}
+      {budgetModalOpen && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0, color: "var(--text-strong)" }}>Đặt ngân sách</h3>
+              <button style={styles.modalClose} onClick={() => setBudgetModalOpen(false)}>
+                <Icon name="close" tone="slate" size={16} background={false} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveBudget} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <select
+                style={styles.select}
+                value={budgetForm.categoryId}
+                onChange={(e) => setBudgetForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+              >
+                <option value="">Chọn danh mục</option>
+                {categories.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <InputField
+                type="number"
+                placeholder="Hạn mức (VND)"
+                value={budgetForm.limitAmount}
+                onChange={(e) => setBudgetForm((prev) => ({ ...prev, limitAmount: e.target.value }))}
+              />
+              <Button type="submit">Lưu ngân sách</Button>
+            </form>
+          </div>
+        </div>
       )}
     </PageTransition>
   );
@@ -635,6 +754,55 @@ const styles = {
     gap: 12,
     paddingBottom: 12,
     borderBottom: "1px solid rgba(148,163,184,0.15)",
+  },
+  progressBarOuter: {
+    position: "relative",
+    width: "100%",
+    height: 12,
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 999,
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,0.08)",
+  },
+  progressBarInner: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 999,
+    transition: "width 0.3s ease",
+  },
+  progressLabel: {
+    position: "absolute",
+    right: 8,
+    top: -18,
+    fontSize: 11,
+    color: "rgba(255,255,255,0.75)",
+    fontWeight: 700,
+  },
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.55)",
+    display: "grid",
+    placeItems: "center",
+    zIndex: 20,
+    padding: 16,
+  },
+  modal: {
+    width: "100%",
+    maxWidth: 420,
+    background: "var(--bg-card)",
+    borderRadius: 16,
+    padding: 18,
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+  },
+  modalClose: {
+    border: "none",
+    background: "transparent",
+    color: "var(--text-muted)",
+    cursor: "pointer",
   },
   iconBox: {
     width: 40,
