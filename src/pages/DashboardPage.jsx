@@ -1,6 +1,6 @@
 // src/pages/DashboardPage.jsx
 import { useEffect, useMemo, useState } from "react";
-import { apiGetSummary, apiCreateTransaction } from "../api/transactions";
+import { apiGetSummary, apiCreateTransaction, apiGetTransactions } from "../api/transactions";
 import { apiGetCategories } from "../api/categories";
 import { apiGetExpenseBreakdown } from "../api/reports";
 import { apiGetMe } from "../api/auth";
@@ -15,6 +15,63 @@ import PageTransition from "../components/PageTransition";
 import { globalStyles } from "../utils/animations";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+
+function aggregateMonthlyStats(transactions = []) {
+  const now = new Date();
+  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const agg = {
+    current: { income: 0, expense: 0 },
+    previous: { income: 0, expense: 0 },
+  };
+
+  transactions.forEach((t) => {
+    const d = new Date(t.date);
+    if (Number.isNaN(d.getTime())) return;
+    const bucket = d >= currentStart ? "current" : d >= previousStart && d < currentStart ? "previous" : null;
+    if (!bucket) return;
+    if (t.type === "income") agg[bucket].income += t.amount;
+    else agg[bucket].expense += t.amount;
+  });
+
+  const calcRate = (income, expense) => {
+    if (!income) return 0;
+    return ((income - expense) / income) * 100;
+  };
+
+  return {
+    current: {
+      ...agg.current,
+      net: agg.current.income - agg.current.expense,
+      savingRate: calcRate(agg.current.income, agg.current.expense),
+    },
+    previous: {
+      ...agg.previous,
+      net: agg.previous.income - agg.previous.expense,
+      savingRate: calcRate(agg.previous.income, agg.previous.expense),
+    },
+  };
+}
+
+function buildDelta(current, previous, { invert = false } = {}) {
+  const base = Math.abs(previous);
+  let deltaPercent = 0;
+  if (base === 0) {
+    deltaPercent = current > 0 ? 100 : 0;
+  } else {
+    deltaPercent = ((current - previous) / base) * 100;
+  }
+
+  const isUp = deltaPercent >= 0;
+  const isGood = invert ? !isUp : isUp;
+  const icon = isUp ? "arrowUpRight" : "arrowDown";
+
+  return { deltaPercent, isUp, isGood, icon };
+}
+
+const formatCurrency = (value) => `$${Number(value || 0).toLocaleString("en-US")}`;
+const formatPercent = (value) => `${Number.isFinite(value) ? value.toFixed(1) : "0.0"}%`;
 
 export default function DashboardPage() {
   const quotes = [
@@ -66,6 +123,7 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState(null);
   const [breakdown, setBreakdown] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [quickForm, setQuickForm] = useState({ type: "expense", categoryId: "", note: "", amount: "" });
   const [quickError, setQuickError] = useState("");
@@ -75,13 +133,15 @@ export default function DashboardPage() {
 
   async function fetchAllData() {
     try {
-      const [me, sum, cats, bre] = await Promise.all([
-        apiGetMe(), apiGetSummary(), apiGetCategories(), apiGetExpenseBreakdown()
+      const [me, sum, cats, bre, txs] = await Promise.all([
+        apiGetMe(), apiGetSummary(), apiGetCategories(), apiGetExpenseBreakdown(), apiGetTransactions({ limit: 500 })
       ]);
       setUser(me.user);
       setSummary(sum);
       setCategories(Array.isArray(cats) ? cats : (cats.categories || []));
       setBreakdown(Array.isArray(bre) ? bre : (bre.breakdown || []));
+      const list = Array.isArray(txs) ? txs : (txs.transactions || []);
+      setTransactions(list);
     } catch (err) { console.error(err); }
   }
 
@@ -156,6 +216,51 @@ export default function DashboardPage() {
   const recent = summary?.recentTransactions || [];
   const activeQuote = quotes[quoteIndex];
 
+  const monthlyStats = useMemo(() => aggregateMonthlyStats(transactions), [transactions]);
+
+  const kpiCards = useMemo(() => {
+    const { current, previous } = monthlyStats;
+    return [
+      {
+        key: "expense",
+        label: "Tổng chi kỳ hiện tại",
+        value: current.expense,
+        previous: previous.expense,
+        accent: "linear-gradient(135deg, rgba(248,113,113,0.24), rgba(239,68,68,0.14))",
+        textColor: "#fecdd3",
+        invert: true,
+      },
+      {
+        key: "income",
+        label: "Tổng thu kỳ hiện tại",
+        value: current.income,
+        previous: previous.income,
+        accent: "linear-gradient(135deg, rgba(34,197,94,0.24), rgba(74,222,128,0.16))",
+        textColor: "#bbf7d0",
+        invert: false,
+      },
+      {
+        key: "net",
+        label: "Dòng tiền ròng",
+        value: current.net,
+        previous: previous.net,
+        accent: "linear-gradient(135deg, rgba(59,130,246,0.24), rgba(99,102,241,0.16))",
+        textColor: "#c7d2fe",
+        invert: false,
+      },
+      {
+        key: "savingRate",
+        label: "Tỷ lệ tiết kiệm",
+        value: monthlyStats.current.savingRate,
+        previous: monthlyStats.previous.savingRate,
+        accent: "linear-gradient(135deg, rgba(234,179,8,0.24), rgba(251,191,36,0.12))",
+        textColor: "#fef08a",
+        invert: false,
+        isPercent: true,
+      },
+    ];
+  }, [monthlyStats]);
+
   function renderTxnIcon(t) {
     const iconName = t.category?.icon;
     const tone = t.type === "income" ? "green" : "red";
@@ -187,12 +292,43 @@ export default function DashboardPage() {
       {loading ? (
         <p style={{ color: "var(--text-muted)" }}>Đang tải dữ liệu...</p>
       ) : (
-        <div style={{ ...styles.grid, gridTemplateColumns: isNarrow ? "1fr" : "repeat(2, minmax(0, 1fr))" }}>
-          <Card animate custom={0} title="Tổng số dư" style={{ ...styles.card, ...styles.tallCard }}>
-            <div style={styles.balanceRow}>
-              <div>
-                <div style={styles.balanceValue}>${balance.toLocaleString("en-US")}</div>
-                <div style={styles.balanceHint}>Tổng cộng sau mọi giao dịch</div>
+        <>
+          <div style={styles.kpiGrid}>
+            {kpiCards.map((card, idx) => {
+              const delta = buildDelta(card.value, card.previous, { invert: card.invert });
+              return (
+                <Card key={card.key} animate custom={idx} style={{ ...styles.card, ...styles.kpiCard, background: card.accent }}>
+                  <div style={styles.kpiHeader}>
+                    <span style={{ ...styles.kpiLabel, color: card.textColor }}>{card.label}</span>
+                    <Badge tone={card.invert ? "danger" : "success"}>MoM</Badge>
+                  </div>
+                  <div style={styles.kpiValueRow}>
+                    <div style={styles.kpiValue}>
+                      {card.isPercent ? formatPercent(card.value) : formatCurrency(card.value)}
+                    </div>
+                    <span style={styles.kpiHint}>Kỳ hiện tại</span>
+                  </div>
+                  <div style={styles.kpiFooter}>
+                    <span style={delta.isGood ? styles.changePositive : styles.changeNegative}>
+                      <Icon name={delta.icon} tone={delta.isGood ? "green" : "red"} size={16} background={false} />
+                      {formatPercent(delta.deltaPercent)}
+                      <span style={styles.deltaLabel}> vs kỳ trước</span>
+                    </span>
+                    <span style={styles.kpiPrev}>
+                      Kỳ trước: {card.isPercent ? formatPercent(card.previous) : formatCurrency(card.previous)}
+                    </span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          <div style={{ ...styles.grid, gridTemplateColumns: isNarrow ? "1fr" : "repeat(2, minmax(0, 1fr))" }}>
+            <Card animate custom={0} title="Tổng số dư" style={{ ...styles.card, ...styles.tallCard }}>
+              <div style={styles.balanceRow}>
+                <div>
+                  <div style={styles.balanceValue}>${balance.toLocaleString("en-US")}</div>
+                  <div style={styles.balanceHint}>Tổng cộng sau mọi giao dịch</div>
               </div>
               <div style={styles.badgeStack}>
                 <Badge tone="success">Thu nhập +${totalIncome.toLocaleString("en-US")}</Badge>
@@ -359,6 +495,7 @@ export default function DashboardPage() {
             </div>
           </Card>
         </div>
+        </>
       )}
     </PageTransition>
   );
@@ -393,6 +530,28 @@ const styles = {
   heading: { margin: "8px 0 6px", color: "var(--text-strong)", fontSize: 28, letterSpacing: -0.4 },
   subHeading: { display: "inline-block", marginLeft: 10, color: "var(--text-muted)", fontSize: 16, fontWeight: 500 },
   lead: { margin: 0, color: "#e2e8f0", fontSize: 14 },
+  kpiGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 12,
+    marginBottom: 6,
+  },
+  kpiCard: {
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 16px 40px rgba(0,0,0,0.32)",
+    minHeight: 150,
+  },
+  kpiHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  kpiLabel: { fontWeight: 700, fontSize: 13, letterSpacing: 0.2 },
+  kpiValueRow: { display: "flex", alignItems: "baseline", gap: 8 },
+  kpiValue: { fontSize: 28, fontWeight: 800, color: "#fff" },
+  kpiHint: { color: "rgba(255,255,255,0.7)", fontSize: 12 },
+  kpiFooter: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, gap: 10, flexWrap: "wrap" },
+  kpiPrev: { color: "rgba(255,255,255,0.7)", fontSize: 12 },
+  changePositive: { color: "#4ade80", fontWeight: 700, fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 },
+  changeNegative: { color: "#f87171", fontWeight: 700, fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 },
+  changeNeutral: { color: "var(--text-muted)", fontWeight: 700, fontSize: 13 },
+  deltaLabel: { color: "rgba(255,255,255,0.68)", fontWeight: 500, fontSize: 12, marginLeft: 6 },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
