@@ -237,10 +237,18 @@ const styles = {
     overflow: "hidden",
     cursor: "pointer",
     height: "100%",
+    minHeight: 380,
     display: "flex",
     flexDirection: "column",
   },
-  anchor: { textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", height: "100%" },
+  anchor: {
+    textDecoration: "none",
+    color: "inherit",
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    flex: 1,
+  },
   thumbWrapper: {
     height: 180,
     position: "relative",
@@ -290,6 +298,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     flex: 1,
+    gap: 6,
   },
   cardTitle: {
     fontSize: 16,
@@ -297,6 +306,10 @@ const styles = {
     color: "var(--text-strong)",
     fontWeight: 700,
     lineHeight: 1.4,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
   },
   metaRow: {
     display: "flex",
@@ -326,6 +339,10 @@ const styles = {
     marginBottom: 16,
     flex: 1,
     lineHeight: 1.5,
+    display: "-webkit-box",
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
   },
   linkText: {
     display: "inline-flex",
@@ -334,5 +351,6 @@ const styles = {
     color: "#67e8f9",
     fontWeight: 600,
     fontSize: 14,
+    marginTop: "auto",
   }
 };
