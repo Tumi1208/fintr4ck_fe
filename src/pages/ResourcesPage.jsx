@@ -15,6 +15,9 @@ export default function ResourcesPage() {
       type: "video",
       title: "Quy tắc 50/30/20: Bí mật quản lý tài chính",
       desc: "Phương pháp phân chia thu nhập kinh điển: 50% thiết yếu, 30% mong muốn, 20% tiết kiệm. Hướng dẫn thực hành chi tiết.",
+      duration: 12,
+      source: "Maggie Maggie",
+      level: "Cơ bản",
       // Link Video thật từ kênh Maggie Maggie
       link: "https://www.youtube.com/watch?v=1v_B5TKH7qY", 
       // Thumbnail thật lấy trực tiếp từ ID video Youtube
@@ -25,6 +28,9 @@ export default function ResourcesPage() {
       type: "article",
       title: "Sai lầm khiến người trẻ quản lý tài chính kém",
       desc: "Phung phí chi tiêu, đầu tư ngoài khả năng là những rào cản lớn. Đọc ngay trên VnExpress để tránh mắc phải.",
+      duration: 5,
+      source: "VnExpress",
+      level: "Cơ bản",
       // Link bài báo thật trên VnExpress
       link: "https://vnexpress.net/sai-lam-khien-nguoi-tre-quan-ly-tai-chinh-kem-hieu-qua-4580620.html", 
       // Ảnh minh họa thật (Unsplash) chủ đề 'money stress'
@@ -35,6 +41,9 @@ export default function ResourcesPage() {
       type: "video",
       title: "Đầu tư với số vốn nhỏ (50 Triệu) cho người mới",
       desc: "Podcast chia sẻ cách bắt đầu đầu tư an toàn và hiệu quả cho người mới bắt đầu từ kênh Trọng Tài Chính.",
+      duration: 18,
+      source: "Trọng Tài Chính",
+      level: "Trung cấp",
       // Link Video thật
       link: "https://www.youtube.com/watch?v=FBkzd9A7Sk0",
       // Thumbnail thật từ Youtube
@@ -45,6 +54,9 @@ export default function ResourcesPage() {
       type: "tool",
       title: "Công cụ tính lãi kép Online (VNSC)",
       desc: "Nhập số vốn, lãi suất và thời gian để thấy sức mạnh của lãi kép. Công cụ uy tín từ VNSC by Finhay.",
+      duration: 2,
+      source: "VNSC by Finhay",
+      level: "Trung cấp",
       // Link Tool thật
       link: "https://www.vnsc.vn/cong-cu-tinh-lai-kep/",
       // Ảnh minh họa thật (Unsplash) chủ đề 'growth chart'
@@ -142,6 +154,19 @@ export default function ResourcesPage() {
               </div>
               <div style={styles.content}>
                 <h3 style={styles.cardTitle}>{item.title}</h3>
+                <div style={styles.metaRow}>
+                  {(() => {
+                    const chips = [];
+                    if (item.type === "video") chips.push(`Video • ${item.duration} phút`);
+                    else if (item.type === "article") chips.push(`Bài viết • ${item.duration} phút đọc`);
+                    else chips.push("Công cụ • thao tác nhanh");
+                    if (item.source) chips.push(item.source);
+                    if (item.level) chips.push(item.level);
+                    return chips.map((chip, chipIdx) => (
+                      <span key={chipIdx} style={styles.metaChip}>{chip}</span>
+                    ));
+                  })()}
+                </div>
                 <p style={styles.cardDesc}>{item.desc}</p>
                 <span style={styles.linkText}>
                   Xem chi tiết
@@ -272,6 +297,28 @@ const styles = {
     color: "var(--text-strong)",
     fontWeight: 700,
     lineHeight: 1.4,
+  },
+  metaRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+  },
+  metaChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "6px 10px",
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "var(--text-muted)",
+    fontSize: 12,
+    fontWeight: 600,
+    lineHeight: 1.2,
+    maxWidth: 180,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   cardDesc: {
     fontSize: 13,
