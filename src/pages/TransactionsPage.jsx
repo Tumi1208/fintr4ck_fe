@@ -1,5 +1,6 @@
 // src/pages/TransactionsPage.jsx
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   apiGetTransactions,
   apiDeleteTransaction,
@@ -16,6 +17,7 @@ import InputField from "../components/ui/InputField";
 import Icon from "../components/ui/Icon";
 
 export default function TransactionsPage() {
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,16 @@ export default function TransactionsPage() {
     type: "all",
     categoryId: "",
   });
+
+  const totals = useMemo(() => {
+    const income = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + (t.amount || 0), 0);
+    const expense = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + (t.amount || 0), 0);
+    return {
+      totalIncome: income,
+      totalExpense: expense,
+      net: income - expense,
+    };
+  }, [transactions]);
 
   // 1. Lấy danh mục (Chạy 1 lần đầu)
   useEffect(() => {
@@ -137,6 +149,17 @@ export default function TransactionsPage() {
   }
 
   const allSelected = transactions.length > 0 && selectedIds.length === transactions.length;
+  const hasData = transactions.length > 0;
+
+  function resetFilters() {
+    setFilters({ type: "all", categoryId: "" });
+    setSearchTerm("");
+    setSelectedIds([]);
+  }
+
+  function handleAddTransaction() {
+    navigate("/app/dashboard");
+  }
 
   return (
     <PageTransition>
@@ -254,15 +277,37 @@ export default function TransactionsPage() {
             </div>
           </div>
         )}
+        {hasData && (
+          <div style={styles.summaryStrip}>
+            <span>
+              Tổng thu: <strong style={{ color: "#4ade80" }}>+${totals.totalIncome.toLocaleString("en-US")}</strong>
+            </span>
+            <span>
+              Tổng chi: <strong style={{ color: "#f87171" }}>-${totals.totalExpense.toLocaleString("en-US")}</strong>
+            </span>
+            <span>
+              Chênh lệch:{" "}
+              <strong style={{ color: totals.net >= 0 ? "#4ade80" : "#f87171" }}>
+                {totals.net >= 0 ? "+" : "-"}${Math.abs(totals.net).toLocaleString("en-US")}
+              </strong>
+            </span>
+          </div>
+        )}
 
         {loading ? (
           <p style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>Đang tìm kiếm...</p>
         ) : transactions.length === 0 ? (
-          <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-            <div style={{ marginBottom: 10 }}>
-              <Icon name="inbox" tone="slate" size={44} />
+          <div style={styles.emptyState}>
+            <div style={styles.emptyIcon}>📭</div>
+            <p style={styles.emptyText}>Không có giao dịch phù hợp</p>
+            <div style={styles.emptyActions}>
+              <Button variant="ghost" style={{ padding: "10px 14px" }} onClick={resetFilters}>
+                Xoá bộ lọc
+              </Button>
+              <Button variant="primary" style={{ padding: "10px 14px" }} onClick={handleAddTransaction}>
+                Thêm giao dịch
+              </Button>
             </div>
-            Không tìm thấy giao dịch nào phù hợp.
           </div>
         ) : (
           <table style={styles.table}>
@@ -281,12 +326,7 @@ export default function TransactionsPage() {
             </thead>
             <tbody>
               {transactions.map((t) => (
-                <tr
-                  key={t._id}
-                  style={styles.tr}
-                  onMouseEnter={() => setEditingCategoryId(t._id)}
-                  onMouseLeave={() => setEditingCategoryId((prev) => (prev === t._id ? null : prev))}
-                >
+                <tr key={t._id} style={styles.tr}>
                   <td style={{ textAlign: "center" }}>
                     <input type="checkbox" checked={selectedIds.includes(t._id)} onChange={() => toggleSelect(t._id)} />
                   </td>
@@ -294,20 +334,31 @@ export default function TransactionsPage() {
                     {new Date(t.date).toLocaleDateString("vi-VN")}
                   </td>
                   <td>
-                    {editingCategoryId === t._id ? (
-                      <div style={styles.catSelectWrap}>
-                        <div style={styles.catSelectDisplay}>
-                          <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
-                          <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
-                          {categorySaving[t._id] && <span style={styles.saveHint}>Đang lưu...</span>}
-                          <span style={styles.caret}>▾</span>
-                        </div>
+                    <div style={styles.categoryCell}>
+                      <button
+                        type="button"
+                        style={styles.categoryChip}
+                        onClick={() => setEditingCategoryId(t._id)}
+                        title="Chỉnh sửa danh mục"
+                      >
+                        <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
+                        <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
+                        <span style={styles.catTrailing}>
+                          <Icon name="edit" tone="slate" size={12} background={false} />
+                        </span>
+                      </button>
+                      <div
+                        style={{
+                          ...styles.catEditOverlay,
+                          ...(editingCategoryId === t._id ? styles.catEditOverlayActive : {}),
+                        }}
+                      >
                         <select
-                          style={styles.catSelectNative}
+                          style={styles.catSelectInline}
                           value={t.category?._id || ""}
                           onChange={(e) => handleCategoryChange(t._id, e.target.value)}
                           disabled={categorySaving[t._id]}
-                          onBlur={() => setEditingCategoryId(null)}
+                          autoFocus
                           onKeyDown={(e) => {
                             if (e.key === "Escape") setEditingCategoryId(null);
                           }}
@@ -322,18 +373,7 @@ export default function TransactionsPage() {
                             ))}
                         </select>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        style={styles.categoryChip}
-                        onClick={() => setEditingCategoryId(t._id)}
-                        title="Chỉnh sửa danh mục"
-                      >
-                        <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
-                        <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
-                        <Icon name="edit" tone="slate" size={14} background={false} />
-                      </button>
-                    )}
+                    </div>
                   </td>
                   <td>
                     <span
@@ -422,7 +462,7 @@ function renderTxnCategoryIcon(category) {
 function renderCategoryLabel(category) {
   if (!category) return "Không phân loại";
   const iconVal = category.icon && category.icon.trim();
-  return `${iconVal ? `${iconVal} · ` : ""}${category.name}`;
+  return category.name;
 }
 
 const styles = {
@@ -449,12 +489,7 @@ const styles = {
     fontSize: 14,
     outline: "none",
   },
-  catSelectWrap: {
-    position: "relative",
-    display: "inline-flex",
-    alignItems: "center",
-    minWidth: 220,
-  },
+  catSelectWrap: { position: "relative", display: "inline-flex", alignItems: "center", minWidth: 220 },
   catSelectDisplay: {
     display: "inline-flex",
     alignItems: "center",
@@ -469,16 +504,15 @@ const styles = {
     cursor: "pointer",
   },
   catLabel: { flex: 1 },
-  catSelectNative: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    opacity: 0,
-    cursor: "pointer",
-  },
   saveHint: { color: "#fbbf24", fontSize: 12, fontWeight: 700 },
   caret: { color: "var(--text-muted)", fontSize: 12, marginLeft: 6 },
+  catTrailing: {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "4px 6px",
+    borderRadius: 10,
+    background: "rgba(148,163,184,0.14)",
+  },
   categoryChip: {
     display: "inline-flex",
     alignItems: "center",
@@ -492,6 +526,27 @@ const styles = {
     cursor: "pointer",
     width: "100%",
   },
+  catEditOverlay: {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    opacity: 0,
+    pointerEvents: "none",
+    transition: "opacity 0.12s ease",
+  },
+  catEditOverlayActive: { opacity: 1, pointerEvents: "auto" },
+  catSelectInline: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 14,
+    border: "1px solid transparent",
+    background: "transparent",
+    color: "transparent",
+    padding: "10px 12px",
+    opacity: 0.01,
+  },
+  categoryCell: { position: "relative", minWidth: 240 },
   tableHeader: {
     display: "flex",
     alignItems: "center",
@@ -518,6 +573,18 @@ const styles = {
   },
   bulkInfo: { display: "flex", alignItems: "center", gap: 10, color: "var(--text-strong)", fontWeight: 700 },
   bulkActions: { display: "flex", alignItems: "center", gap: 10 },
+  summaryStrip: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 12,
+    padding: "10px 12px",
+    marginBottom: 12,
+    borderRadius: 12,
+    background: "rgba(226,232,240,0.05)",
+    border: "1px solid rgba(148,163,184,0.16)",
+    color: "var(--text-strong)",
+    fontWeight: 600,
+  },
   table: { width: "100%", borderCollapse: "collapse", fontSize: 14, color: "var(--text-strong)" },
   tr: { borderBottom: "1px solid rgba(148,163,184,0.12)", height: 60 },
   tag: {
@@ -551,4 +618,18 @@ const styles = {
     boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
   },
   customCatIcon: { fontSize: 13, fontWeight: 700 },
+  emptyState: {
+    padding: 40,
+    textAlign: "center",
+    color: "var(--text-muted)",
+    borderRadius: 16,
+    border: "1px dashed rgba(148,163,184,0.25)",
+    background: "rgba(15,23,42,0.6)",
+    display: "grid",
+    gap: 12,
+    justifyItems: "center",
+  },
+  emptyIcon: { fontSize: 28 },
+  emptyText: { margin: 0, fontSize: 15, color: "var(--text-strong)" },
+  emptyActions: { display: "flex", gap: 10, justifyContent: "center" },
 };
