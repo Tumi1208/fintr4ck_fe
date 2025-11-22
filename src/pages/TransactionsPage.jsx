@@ -461,7 +461,6 @@ function renderTxnCategoryIcon(category) {
 
 function renderCategoryLabel(category) {
   if (!category) return "Không phân loại";
-  const iconVal = category.icon && category.icon.trim();
   return category.name;
 }
 

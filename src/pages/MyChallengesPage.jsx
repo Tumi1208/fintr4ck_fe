@@ -32,6 +32,21 @@ function getMotivationMessageForStreak(streak) {
   return getRandomMotivationMessage();
 }
 
+function isSameLocalDay(dateA, dateB) {
+  return (
+    dateA.getFullYear() === dateB.getFullYear() &&
+    dateA.getMonth() === dateB.getMonth() &&
+    dateA.getDate() === dateB.getDate()
+  );
+}
+
+function computeCheckedInToday(userChallenge) {
+  if (typeof userChallenge.checkedInToday === "boolean") return userChallenge.checkedInToday;
+  if (!userChallenge.lastCheckInDate) return false;
+  const last = new Date(userChallenge.lastCheckInDate);
+  return isSameLocalDay(last, new Date());
+}
+
 export default function MyChallengesPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +89,18 @@ export default function MyChallengesPage() {
       if (!res.ok) throw new Error(data.message || "Không thể check-in");
       const streak = data.currentStreak || 0;
       alert(getMotivationMessageForStreak(streak));
-      loadData();
+      setItems((prev) =>
+        prev.map((i) =>
+          i._id === id
+            ? {
+                ...i,
+                ...data,
+                // Preserve existing challenge fields (title, type...) while merging updated data
+                challenge: { ...i.challenge, ...(data.challenge || {}) },
+              }
+            : i,
+        ),
+      );
     } catch (err) {
       alert(err.message);
     } finally {
@@ -136,10 +162,23 @@ export default function MyChallengesPage() {
             { key: "start", label: "Bắt đầu", percent: 0 },
           );
           const tiers = [{ key: "start", label: "Bắt đầu", percent: 0 }, ...milestones];
+          const checkedInToday = computeCheckedInToday(item);
           return (
             <div key={item._id} style={styles.tableRow}>
               <div style={styles.colWide}>
-                <div style={styles.cardTitle}>{item.challenge?.title || "Challenge"}</div>
+                <div style={styles.titleRow}>
+                  <div style={styles.cardTitle}>{item.challenge?.title || "Challenge"}</div>
+                  {item.status === "ACTIVE" && (
+                    <span
+                      style={{
+                        ...styles.checkBadge,
+                        ...(checkedInToday ? styles.checkBadgeDone : styles.checkBadgePending),
+                      }}
+                    >
+                      {checkedInToday ? "Đã check-in ✓" : "Chưa check-in"}
+                    </span>
+                  )}
+                </div>
                 <div style={styles.mutedSmall}>
                   {completed}/{duration} ngày · Streak: {item.currentStreak}
                 </div>
@@ -196,11 +235,19 @@ export default function MyChallengesPage() {
               <div style={styles.colActions}>
                 {item.status === "ACTIVE" && (
                   <button
-                    style={styles.checkBtn}
-                    onClick={() => handleCheckIn(item._id)}
-                    disabled={checkingId === item._id}
+                    style={{
+                      ...styles.checkBtn,
+                      ...(checkedInToday ? styles.checkBtnDone : styles.checkBtnPrimary),
+                      opacity: checkingId === item._id ? 0.8 : 1,
+                    }}
+                    onClick={() => !checkedInToday && handleCheckIn(item._id)}
+                    disabled={checkingId === item._id || checkedInToday}
                   >
-                    {checkingId === item._id ? "Đang check-in..." : "Check-in hôm nay"}
+                    {checkingId === item._id
+                      ? "Đang check-in..."
+                      : checkedInToday
+                      ? "Đã check-in ✓"
+                      : "Check-in hôm nay"}
                   </button>
                 )}
                 <button
@@ -266,12 +313,20 @@ const styles = {
   checkBtn: {
     padding: "10px 12px",
     borderRadius: 10,
-    border: "1px solid rgba(148,163,184,0.2)",
-    background: "rgba(99,102,241,0.9)",
-    color: "#0b1021",
     fontWeight: 800,
     cursor: "pointer",
     width: "100%",
+  },
+  checkBtnPrimary: {
+    border: "1px solid rgba(148,163,184,0.2)",
+    background: "rgba(99,102,241,0.9)",
+    color: "#0b1021",
+  },
+  checkBtnDone: {
+    border: "1px solid rgba(34,197,94,0.4)",
+    background: "rgba(34,197,94,0.15)",
+    color: "#bbf7d0",
+    cursor: "not-allowed",
   },
   leaveBtn: {
     padding: "10px 12px",
@@ -406,4 +461,22 @@ const styles = {
   droplet: { display: "none" },
   dropletTitle: { display: "none" },
   dropletSub: { display: "none" },
+  titleRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  checkBadge: {
+    padding: "4px 8px",
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 700,
+    border: "1px solid transparent",
+  },
+  checkBadgePending: {
+    background: "rgba(79,70,229,0.12)",
+    color: "#c7d2fe",
+    borderColor: "rgba(148,163,184,0.2)",
+  },
+  checkBadgeDone: {
+    background: "rgba(34,197,94,0.12)",
+    color: "#bbf7d0",
+    borderColor: "rgba(34,197,94,0.4)",
+  },
 };
