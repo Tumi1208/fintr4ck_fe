@@ -17,41 +17,83 @@ import { getBudgets, saveBudget } from "../utils/budgets";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
-function aggregateMonthlyStats(transactions = []) {
+const DAY = 24 * 60 * 60 * 1000;
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function endOfDay(date) {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function getPresetRange(preset) {
   const now = new Date();
-  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  if (preset === "lastMonth") {
+    const start = startOfDay(new Date(y, m - 1, 1));
+    const end = endOfDay(new Date(y, m, 0));
+    return { start, end };
+  }
+  if (preset === "thisYear") {
+    const start = startOfDay(new Date(y, 0, 1));
+    const end = endOfDay(new Date(y, 11, 31));
+    return { start, end };
+  }
+  if (preset === "last3Months") {
+    const start = startOfDay(new Date(y, m - 2, 1));
+    const end = endOfDay(new Date(y, m + 1, 0));
+    return { start, end };
+  }
+  // default thisMonth
+  const start = startOfDay(new Date(y, m, 1));
+  const end = endOfDay(new Date(y, m + 1, 0));
+  return { start, end };
+}
 
-  const agg = {
-    current: { income: 0, expense: 0 },
-    previous: { income: 0, expense: 0 },
-  };
+function getPreviousRange(range) {
+  if (!range?.start || !range?.end) return null;
+  const start = startOfDay(range.start);
+  const end = endOfDay(range.end);
+  const span = end.getTime() - start.getTime() + DAY;
+  const prevEnd = new Date(start.getTime() - 1);
+  const prevStart = new Date(prevEnd.getTime() - span + DAY);
+  return { start: startOfDay(prevStart), end: endOfDay(prevEnd) };
+}
 
-  transactions.forEach((t) => {
-    const d = new Date(t.date);
-    if (Number.isNaN(d.getTime())) return;
-    const bucket = d >= currentStart ? "current" : d >= previousStart && d < currentStart ? "previous" : null;
-    if (!bucket) return;
-    if (t.type === "income") agg[bucket].income += t.amount;
-    else agg[bucket].expense += t.amount;
+function filterTransactionsByRange(transactions, range) {
+  if (!range?.start || !range?.end) return transactions;
+  const start = startOfDay(range.start).getTime();
+  const end = endOfDay(range.end).getTime();
+  return transactions.filter((t) => {
+    const d = new Date(t.date).getTime();
+    if (Number.isNaN(d)) return false;
+    return d >= start && d <= end;
   });
+}
 
-  const calcRate = (income, expense) => {
-    if (!income) return 0;
-    return ((income - expense) / income) * 100;
-  };
+function summarize(transactions = []) {
+  let income = 0;
+  let expense = 0;
+  transactions.forEach((t) => {
+    if (t.type === "income") income += t.amount || 0;
+    else expense += t.amount || 0;
+  });
+  const net = income - expense;
+  const savingRate = income ? ((income - expense) / income) * 100 : 0;
+  return { income, expense, net, savingRate };
+}
 
+function aggregateStatsForRange(allTransactions, range) {
+  const currentList = filterTransactionsByRange(allTransactions, range);
+  const previousRange = getPreviousRange(range);
+  const prevList = filterTransactionsByRange(allTransactions, previousRange);
   return {
-    current: {
-      ...agg.current,
-      net: agg.current.income - agg.current.expense,
-      savingRate: calcRate(agg.current.income, agg.current.expense),
-    },
-    previous: {
-      ...agg.previous,
-      net: agg.previous.income - agg.previous.expense,
-      savingRate: calcRate(agg.previous.income, agg.previous.expense),
-    },
+    current: summarize(currentList),
+    previous: summarize(prevList),
   };
 }
 
@@ -127,6 +169,8 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState(() => getPresetRange("thisMonth"));
+  const [presetKey, setPresetKey] = useState("thisMonth");
   const [quickForm, setQuickForm] = useState({ type: "expense", categoryId: "", note: "", amount: "" });
   const [quickError, setQuickError] = useState("");
   const [chartType, setChartType] = useState("bar");
@@ -163,20 +207,36 @@ export default function DashboardPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const filteredTransactions = useMemo(() => filterTransactionsByRange(transactions, dateRange), [transactions, dateRange]);
+  const monthlyStats = useMemo(() => aggregateStatsForRange(transactions, dateRange), [transactions, dateRange]);
+  const currentIncome = monthlyStats.current.income || 0;
+  const currentExpense = monthlyStats.current.expense || 0;
+  const recent = useMemo(() => {
+    return [...filteredTransactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+  }, [filteredTransactions]);
+
   const chartData = useMemo(() => {
-    if (!breakdown || breakdown.length === 0) return null;
+    const list = filteredTransactions.length ? filteredTransactions : breakdown;
+    if (!list || list.length === 0) return null;
     const categoryTypeById = new Map(categories.map((c) => [c._id, c.type]));
     const categoryTypeByName = new Map(categories.map((c) => [c.name?.toLowerCase(), c.type]));
-    const labels = breakdown.map((b) => b.name);
-    const values = breakdown.map((b) => b.total || b.amount);
-    const colors = breakdown.map((b) => {
+    const agg = new Map();
+    list.forEach((t) => {
+      const cid = t.category?._id || t.categoryId;
+      const name = t.category?.name || t.name;
+      if (!cid && !name) return;
+      const key = cid || name;
+      const prev = agg.get(key) || { name: name || "Khác", value: 0, type: "expense" };
       const type =
-        categoryTypeById.get(b._id) ||
-        categoryTypeById.get(b.categoryId) ||
-        categoryTypeByName.get(b.name?.toLowerCase()) ||
-        "expense";
-      return type === "income" ? "rgba(34,197,94,0.8)" : "rgba(248,113,113,0.8)";
+        categoryTypeById.get(cid) ||
+        categoryTypeByName.get((name || "").toLowerCase()) ||
+        t.type ||
+        prev.type;
+      agg.set(key, { name: name || prev.name, value: prev.value + (t.amount || 0), type });
     });
+    const labels = Array.from(agg.values()).map((b) => b.name);
+    const values = Array.from(agg.values()).map((b) => b.value);
+    const colors = Array.from(agg.values()).map((b) => (b.type === "income" ? "rgba(34,197,94,0.8)" : "rgba(248,113,113,0.8)"));
     return {
       labels,
       datasets: [
@@ -190,7 +250,7 @@ export default function DashboardPage() {
         },
       ],
     };
-  }, [breakdown, categories]);
+  }, [filteredTransactions, breakdown, categories]);
 
   async function handleQuickAdd(e) {
     e.preventDefault();
@@ -216,32 +276,29 @@ export default function DashboardPage() {
   }
 
   const balance = summary?.currentBalance ?? 0;
-  const totalIncome = summary?.totalIncome ?? 0;
-  const totalExpense = summary?.totalExpense ?? 0;
-  const recent = summary?.recentTransactions || [];
   const activeQuote = quotes[quoteIndex];
-
-  const monthlyStats = useMemo(() => aggregateMonthlyStats(transactions), [transactions]);
-  const monthKey = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const monthKey = useMemo(() => {
+    const d = dateRange?.start ? new Date(dateRange.start) : new Date();
+    return d.toISOString().slice(0, 7);
+  }, [dateRange]);
 
   const budgetView = useMemo(() => {
     if (!budgets.length) return [];
-    const currentStart = new Date(monthKey + "-01T00:00:00");
-    const nextMonth = new Date(currentStart);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const currentStart = dateRange?.start ? startOfDay(dateRange.start) : new Date(monthKey + "-01T00:00:00");
+    const currentEnd = dateRange?.end ? endOfDay(dateRange.end) : (() => { const d = new Date(monthKey + "-01T00:00:00"); d.setMonth(d.getMonth() + 1); return d; })();
     const expenseMap = new Map();
     transactions.forEach((t) => {
       if (t.type !== "expense") return;
       const d = new Date(t.date);
       if (Number.isNaN(d.getTime())) return;
-      if (d < currentStart || d >= nextMonth) return;
+      if (d < currentStart || d > currentEnd) return;
       const key = t.category?._id || t.categoryId;
       if (!key) return;
       expenseMap.set(key, (expenseMap.get(key) || 0) + t.amount);
     });
     const catName = (id) => categories.find((c) => c._id === id)?.name || id;
     return budgets
-      .filter((b) => b.period === "monthly" && (!b.monthKey || b.monthKey === monthKey))
+      .filter((b) => b.period === "monthly")
       .map((b) => {
         const spent = expenseMap.get(b.categoryId) || 0;
         const ratio = b.limitAmount > 0 ? Math.min(spent / b.limitAmount, 2) : 0;
@@ -344,7 +401,52 @@ export default function DashboardPage() {
             Dòng tiền, danh mục và hoạt động mới nhất được cập nhật theo thời gian thực.
           </p>
         </div>
-        <Badge tone="success">Tài khoản hoạt động</Badge>
+        <div style={styles.rangeWrap}>
+          <div style={styles.rangeRow}>
+            <select
+              value={presetKey}
+              onChange={(e) => {
+                const key = e.target.value;
+                setPresetKey(key);
+                if (key !== "custom") {
+                  setDateRange(getPresetRange(key));
+                }
+              }}
+              style={styles.rangeSelect}
+            >
+              <option value="thisMonth">Tháng này</option>
+              <option value="lastMonth">Tháng trước</option>
+              <option value="last3Months">3 tháng gần đây</option>
+              <option value="thisYear">Năm nay</option>
+              <option value="custom">Tùy chọn</option>
+            </select>
+            {presetKey === "custom" && (
+              <>
+                <input
+                  type="date"
+                  value={dateRange?.start ? new Date(dateRange.start).toISOString().slice(0, 10) : ""}
+                  onChange={(e) => {
+                    const val = e.target.value ? new Date(e.target.value) : null;
+                    setPresetKey("custom");
+                    setDateRange((prev) => ({ start: val, end: prev?.end || val || new Date() }));
+                  }}
+                  style={styles.rangeInput}
+                />
+                <input
+                  type="date"
+                  value={dateRange?.end ? new Date(dateRange.end).toISOString().slice(0, 10) : ""}
+                  onChange={(e) => {
+                    const val = e.target.value ? new Date(e.target.value) : null;
+                    setPresetKey("custom");
+                    setDateRange((prev) => ({ start: prev?.start || val || new Date(), end: val }));
+                  }}
+                  style={styles.rangeInput}
+                />
+              </>
+            )}
+          </div>
+          <Badge tone="success">Tài khoản hoạt động</Badge>
+        </div>
       </div>
 
       {loading ? (
@@ -389,8 +491,8 @@ export default function DashboardPage() {
                   <div style={styles.balanceHint}>Tổng cộng sau mọi giao dịch</div>
                 </div>
                 <div style={styles.badgeStack}>
-                  <Badge tone="success">Thu nhập +${totalIncome.toLocaleString("en-US")}</Badge>
-                  <Badge tone="danger">Chi tiêu -${totalExpense.toLocaleString("en-US")}</Badge>
+                  <Badge tone="success">Thu nhập +${currentIncome.toLocaleString("en-US")}</Badge>
+                  <Badge tone="danger">Chi tiêu -${currentExpense.toLocaleString("en-US")}</Badge>
                 </div>
               </div>
               <div style={styles.quoteBox}>
@@ -649,6 +751,23 @@ const styles = {
   heading: { margin: "8px 0 6px", color: "var(--text-strong)", fontSize: 28, letterSpacing: -0.4 },
   subHeading: { display: "inline-block", marginLeft: 10, color: "var(--text-muted)", fontSize: 16, fontWeight: 500 },
   lead: { margin: 0, color: "#e2e8f0", fontSize: 14 },
+  rangeWrap: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 },
+  rangeRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },
+  rangeSelect: {
+    padding: "10px 12px",
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "var(--text-strong)",
+    cursor: "pointer",
+  },
+  rangeInput: {
+    padding: "10px 12px",
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "var(--text-strong)",
+  },
   kpiGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
