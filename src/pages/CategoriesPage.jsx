@@ -282,8 +282,14 @@ export default function CategoriesPage() {
 }
 
 function CategoryCard({ category, onEdit, onDelete, selected, onToggleSelect }) {
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <div style={{ ...styles.catCard, ...(selected ? styles.catCardSelected : {}) }}>
+    <div
+      style={{ ...styles.catCard, ...(selected ? styles.catCardSelected : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div style={styles.catCardTop}>
         <button style={{ ...styles.check, ...(selected ? styles.checkActive : {}) }} onClick={onToggleSelect} aria-label="Chọn danh mục">
           {selected && <Icon name="check" tone="green" size={14} background={false} />}
@@ -304,7 +310,7 @@ function CategoryCard({ category, onEdit, onDelete, selected, onToggleSelect }) 
         </div>
       </div>
 
-      <div style={styles.cardActions}>
+      <div style={{ ...styles.cardActions, ...(hovered ? styles.cardActionsVisible : {}) }}>
         <button style={styles.iconBtn} onClick={onEdit} aria-label="Sửa danh mục">
           <Icon name="edit" tone="blue" size={18} background={false} />
         </button>
@@ -542,6 +548,21 @@ const styles = {
     fontSize: 13,
     color: "var(--text-muted)",
   },
+  cardActions: {
+    marginTop: "auto",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 6,
+    opacity: 0,
+    pointerEvents: "none",
+    transform: "translateY(4px)",
+    transition: "opacity 160ms ease, transform 160ms ease",
+  },
+  cardActionsVisible: {
+    opacity: 1,
+    pointerEvents: "auto",
+    transform: "translateY(0)",
+  },
   modalBackdrop: {
     position: "fixed",
     inset: 0,
@@ -607,5 +628,4 @@ const styles = {
   iconBtnDanger: {
     borderColor: "rgba(248,113,113,0.35)",
   },
-  cardActions: { marginTop: "auto", display: "flex", justifyContent: "flex-end", gap: 6 },
 };
