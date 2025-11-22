@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { authApiHelpers } from "../api/auth";
 import PageTransition from "../components/PageTransition";
@@ -244,7 +245,14 @@ export default function ChallengeListPage() {
 
       <div style={styles.grid}>
         {normalizedItems.map((c) => (
-          <div key={c._id} style={styles.card}>
+          <motion.div
+            key={c._id}
+            style={styles.card}
+            whileHover={styles.cardHover}
+            onClick={() => (joinedIds.has(c._id) ? navigate("/app/my-challenges") : handleJoin(c._id))}
+            role="button"
+            tabIndex={0}
+          >
             <div style={styles.cardHead}>
               <span style={styles.badge}>{c.type}</span>
               <span style={styles.duration}>{c.durationDays} ngày</span>
@@ -252,19 +260,28 @@ export default function ChallengeListPage() {
             <h3 style={styles.cardTitle}>{c.title}</h3>
             <p style={styles.cardDesc}>{c.description}</p>
             {joinedIds.has(c._id) ? (
-              <button style={styles.joinBtn} onClick={() => navigate("/app/my-challenges")}>
+              <button
+                style={styles.joinBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/app/my-challenges");
+                }}
+              >
                 Đã tham gia · Xem tiến độ
               </button>
             ) : (
               <button
                 style={styles.joinBtn}
-                onClick={() => handleJoin(c._id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleJoin(c._id);
+                }}
                 disabled={joiningId === c._id}
               >
                 {joiningId === c._id ? "Đang tham gia..." : "Tham gia"}
               </button>
             )}
-          </div>
+          </motion.div>
         ))}
         {!loading && items.length === 0 && <div style={styles.info}>Chưa có challenge.</div>}
       </div>
@@ -417,7 +434,10 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
+    cursor: "pointer",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
   },
+  cardHover: { y: -4, boxShadow: "0 18px 36px rgba(0,0,0,0.28)", borderColor: "rgba(94,234,212,0.36)" },
   cardHead: { display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" },
   badge: {
     padding: "6px 10px",

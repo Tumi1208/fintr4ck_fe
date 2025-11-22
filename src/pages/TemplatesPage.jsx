@@ -510,6 +510,10 @@ export default function TemplatesPage() {
                   background: tpl.surface || "var(--bg-card)",
                   boxShadow: tpl.bestChoice ? "0 26px 60px rgba(0,0,0,0.45)" : "var(--shadow-card)",
                 }}
+                whileHover={styles.cardHover}
+                onClick={() => handleApply(tpl)}
+                role="button"
+                tabIndex={0}
               >
                 {tpl.bestChoice && (
                   <span style={styles.bestChoiceBadge}>
@@ -544,7 +548,10 @@ export default function TemplatesPage() {
 
                 <Button
                   style={{ borderColor: "transparent", backgroundColor: tpl.btnColor, color: "#0b1021" }}
-                  onClick={() => handleApply(tpl)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleApply(tpl);
+                  }}
                   disabled={loading}
                   fullWidth
                 >
@@ -631,7 +638,10 @@ const styles = {
     flexDirection: "column",
     position: "relative",
     height: "100%",
+    cursor: "pointer",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
   },
+  cardHover: { y: -4, boxShadow: "0 22px 44px rgba(0,0,0,0.32)", borderColor: "rgba(94,234,212,0.36)" },
   cardHeader: { marginBottom: 16 },
   cardTitleRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 },
   titleBadge: {
