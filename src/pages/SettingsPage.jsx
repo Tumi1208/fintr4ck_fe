@@ -14,6 +14,7 @@ import InputField from "../components/ui/InputField";
 import Badge from "../components/ui/Badge";
 import ModalDialog from "../components/ModalDialog";
 import { useDialog } from "../hooks/useDialog";
+import { apiGetTransactions } from "../api/transactions";
 
 const DISPLAY_NAME_KEY = "fintr4ck_displayName";
 
@@ -35,6 +36,8 @@ export default function SettingsPage() {
   const [pwdLoading, setPwdLoading] = useState(false);
   const [showPwdForm, setShowPwdForm] = useState(false);
   const [pwdStrength, setPwdStrength] = useState("weak");
+  const [exportMsg, setExportMsg] = useState("");
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Danger zone
   const [dangerLoading, setDangerLoading] = useState(false);
@@ -76,6 +79,22 @@ export default function SettingsPage() {
       setProfileMsg(err.message || "Không thể lưu");
     } finally {
       setSavingProfile(false);
+    }
+  }
+
+  async function handleExport() {
+    try {
+      setExportLoading(true);
+      setExportMsg("");
+      const data = await apiGetTransactions();
+      const list = Array.isArray(data) ? data : data.transactions || [];
+      const csv = buildTransactionsCsv(list);
+      triggerCsvDownload(csv, "fintr4ck-transactions.csv");
+      setExportMsg("Đã tạo file CSV giao dịch.");
+    } catch (err) {
+      setExportMsg(err.message || "Không thể xuất dữ liệu");
+    } finally {
+      setExportLoading(false);
     }
   }
 
@@ -208,7 +227,18 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <Card animate custom={1} title="Bảo mật" style={styles.card}>
+      <Card animate custom={1} title="Xuất dữ liệu" style={styles.card}>
+        <p style={styles.description}>Tải về giao dịch để lưu trữ hoặc phân tích.</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <Button onClick={handleExport} disabled={exportLoading}>
+            {exportLoading ? "Đang tạo file..." : "Tải CSV giao dịch"}
+          </Button>
+          <span style={styles.helperText}>Bao gồm các giao dịch theo toàn bộ thời gian.</span>
+        </div>
+        {exportMsg && <div style={styles.infoText}>{exportMsg}</div>}
+      </Card>
+
+      <Card animate custom={2} title="Bảo mật" style={styles.card}>
         <p style={styles.description}>Đổi mật khẩu để bảo vệ tài khoản của bạn.</p>
 
         {!showPwdForm && (
@@ -285,7 +315,7 @@ export default function SettingsPage() {
         )}
       </Card>
 
-      <Card animate custom={2} title="Danger Zone" style={styles.card}>
+      <Card animate custom={3} title="Danger Zone" style={styles.card}>
         <p style={styles.description}>Xoá tài khoản và toàn bộ dữ liệu liên quan. Hãy cẩn thận.</p>
 
         <InputField
@@ -340,6 +370,40 @@ function safeSetDisplayName(value) {
   } catch {
     // ignore
   }
+}
+
+function buildTransactionsCsv(list = []) {
+  const headers = ["id", "date", "type", "category", "amount", "note"];
+  const rows = list.map((t) => {
+    const categoryName = t.category?.name || t.category?.label || t.categoryName || "";
+    const date = t.date ? new Date(t.date).toISOString() : "";
+    const type = t.type || "";
+    const amount = typeof t.amount === "number" ? t.amount : t.amount || "";
+    const note = t.note || "";
+    const id = t._id || t.id || "";
+    return [id, date, type, categoryName, amount, note].map(csvEscape).join(",");
+  });
+  return [headers.join(","), ...rows].join("\n");
+}
+
+function csvEscape(value) {
+  const str = value === null || value === undefined ? "" : String(value);
+  if (/[",\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function triggerCsvDownload(content, filename) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function getStrength(value) {
@@ -434,6 +498,7 @@ const styles = {
     minWidth: 180,
     marginBottom: 8,
   },
+  helperText: { color: "var(--text-muted)", fontSize: 13 },
   infoText: {
     fontSize: 13,
     color: "#67e8f9",
