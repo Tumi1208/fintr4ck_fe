@@ -66,12 +66,45 @@ function summarizeChallenges(list) {
   return { participatingCount, bestStreak, totalCheckInsThisMonth, nearest };
 }
 
+const SORT_PRESETS = [
+  { value: "progress", label: "Gần hoàn thành nhất" },
+  { value: "streak", label: "Streak cao nhất" },
+  { value: "joined", label: "Mới tham gia" },
+  { value: "remaining", label: "Còn ít ngày nhất" },
+];
+
+function remainingDays(item) {
+  const total = item.challenge?.durationDays;
+  if (!total || Number.isNaN(Number(total))) return Infinity;
+  const completed = item.completedDays ?? item.currentStreak ?? 0;
+  return Math.max(0, total - completed);
+}
+
+function joinedTimestamp(item) {
+  const joined = item.joinedAt || item.createdAt;
+  const t = joined ? new Date(joined).getTime() : NaN;
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function sortItems(list, preset) {
+  const arr = [...list];
+  arr.sort((a, b) => {
+    if (preset === "streak") return (b.currentStreak || 0) - (a.currentStreak || 0);
+    if (preset === "joined") return joinedTimestamp(b) - joinedTimestamp(a);
+    if (preset === "remaining") return remainingDays(a) - remainingDays(b) || progressPercent(b) - progressPercent(a);
+    // default progress desc
+    return progressPercent(b) - progressPercent(a) || (b.currentStreak || 0) - (a.currentStreak || 0);
+  });
+  return arr;
+}
+
 export default function MyChallengesPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [checkingId, setCheckingId] = useState("");
   const [leavingId, setLeavingId] = useState("");
+  const [sortPreset, setSortPreset] = useState("progress");
 
   async function loadData() {
     try {
@@ -152,6 +185,28 @@ export default function MyChallengesPage() {
           <h1 style={styles.title}>Challenge của tôi</h1>
           <p style={styles.lead}>Xem tiến độ, check-in và huỷ tham gia nếu cần.</p>
         </div>
+        <div style={styles.headerActions}>
+          <div style={styles.sortBar}>
+            <div style={styles.sortTitle}>Sắp xếp</div>
+            <div style={styles.sortChips}>
+              {SORT_PRESETS.map((opt) => {
+                const active = sortPreset === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSortPreset(opt.value)}
+                    style={{
+                      ...styles.sortChip,
+                      ...(active ? styles.sortChipActive : {}),
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
 
       <OverviewStrip items={items} />
@@ -168,7 +223,7 @@ export default function MyChallengesPage() {
             <div style={styles.colActions}>Hành động</div>
           </div>
 
-        {items.map((item) => {
+        {sortItems(items, sortPreset).map((item) => {
           const duration = item.challenge?.durationDays || 1;
           const completed = item.completedDays ?? item.currentStreak ?? 0;
           const progress = progressPercent(item);
@@ -542,4 +597,34 @@ const styles = {
   },
   overviewLabel: { color: "var(--text-muted)", fontSize: 12, marginBottom: 2, fontWeight: 700 },
   overviewValue: { color: "var(--text-strong)", fontSize: 16, fontWeight: 800 },
+  headerActions: { display: "flex", alignItems: "flex-end", justifyContent: "flex-end" },
+  sortBar: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "linear-gradient(135deg, rgba(12,15,28,0.9), rgba(24,31,56,0.9))",
+    border: "1px solid rgba(148,163,184,0.14)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+  },
+  sortTitle: { color: "var(--text-muted)", fontSize: 12, fontWeight: 700, letterSpacing: 0.2 },
+  sortChips: { display: "flex", gap: 8, flexWrap: "wrap" },
+  sortChip: {
+    padding: "8px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(148,163,184,0.18)",
+    background: "rgba(255,255,255,0.03)",
+    color: "var(--text-muted)",
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+  },
+  sortChipActive: {
+    background: "linear-gradient(90deg, rgba(99,102,241,0.85), rgba(16,185,129,0.8))",
+    color: "#0b1021",
+    border: "1px solid rgba(148,163,184,0.25)",
+    boxShadow: "0 8px 20px rgba(99,102,241,0.35)",
+  },
 };
