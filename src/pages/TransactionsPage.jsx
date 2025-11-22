@@ -194,18 +194,34 @@ export default function TransactionsPage() {
         </div>
       </Card>
 
-      <Card animate custom={1}>
-        <div style={styles.tableActions}>
+      <Card animate custom={1} style={{ position: "relative" }}>
+        <div style={styles.tableHeader}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-muted)", fontSize: 14 }}>
             <Badge tone="info">{transactions.length} giao dịch</Badge>
-            {selectedIds.length > 0 && (
-              <span style={{ color: "var(--text-strong)", fontWeight: 700 }}>
-                Đã chọn {selectedIds.length}
-              </span>
-            )}
+            <span style={{ color: "var(--text-muted)" }}>Danh sách sau lọc</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {transactions.length > 0 && (
+          {transactions.length > 0 && (
+            <Button
+              variant="danger"
+              style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
+              onClick={handleDeleteAll}
+              disabled={bulkLoading}
+            >
+              <Icon name="trash" tone="red" size={16} background={false} />
+              Xoá tất cả
+            </Button>
+          )}
+        </div>
+
+        {selectedIds.length > 0 && (
+          <div style={styles.bulkToolbar}>
+            <div style={styles.bulkInfo}>
+              <Icon name="check" tone="blue" size={16} background={false} />
+              <span>
+                Đã chọn <strong>{selectedIds.length}</strong> giao dịch
+              </span>
+            </div>
+            <div style={styles.bulkActions}>
               <Button
                 variant="ghost"
                 style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
@@ -215,8 +231,15 @@ export default function TransactionsPage() {
                 <Icon name={allSelected ? "close" : "check"} tone="slate" size={16} background={false} />
                 {allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
               </Button>
-            )}
-            {selectedIds.length > 0 && (
+              <Button
+                variant="ghost"
+                style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
+                onClick={() => setSelectedIds([])}
+                disabled={bulkLoading}
+              >
+                <Icon name="close" tone="slate" size={16} background={false} />
+                Bỏ chọn
+              </Button>
               <Button
                 variant="danger"
                 style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
@@ -224,22 +247,11 @@ export default function TransactionsPage() {
                 disabled={bulkLoading}
               >
                 <Icon name="trash" tone="red" size={16} background={false} />
-                Xoá giao dịch đã chọn
+                Xoá
               </Button>
-            )}
-            {transactions.length > 0 && (
-              <Button
-                variant="danger"
-                style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
-                onClick={handleDeleteAll}
-                disabled={bulkLoading}
-              >
-                <Icon name="trash" tone="red" size={16} background={false} />
-                Xoá tất cả
-              </Button>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {loading ? (
           <p style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>Đang tìm kiếm...</p>
@@ -443,7 +455,7 @@ const styles = {
   },
   saveHint: { color: "#fbbf24", fontSize: 12, fontWeight: 700 },
   caret: { color: "var(--text-muted)", fontSize: 12, marginLeft: 6 },
-  tableActions: {
+  tableHeader: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -451,6 +463,24 @@ const styles = {
     marginBottom: 12,
     borderBottom: "1px solid rgba(148,163,184,0.12)",
   },
+  bulkToolbar: {
+    position: "sticky",
+    top: 10,
+    zIndex: 5,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "12px 16px",
+    marginBottom: 12,
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.88)",
+    border: "1px solid rgba(148,163,184,0.2)",
+    boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
+    backdropFilter: "blur(12px)",
+  },
+  bulkInfo: { display: "flex", alignItems: "center", gap: 10, color: "var(--text-strong)", fontWeight: 700 },
+  bulkActions: { display: "flex", alignItems: "center", gap: 10 },
   table: { width: "100%", borderCollapse: "collapse", fontSize: 14, color: "var(--text-strong)" },
   tr: { borderBottom: "1px solid rgba(148,163,184,0.12)", height: 60 },
   tag: {
