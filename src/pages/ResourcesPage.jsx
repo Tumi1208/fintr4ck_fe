@@ -8,6 +8,7 @@ export default function ResourcesPage() {
   const [searchValue, setSearchValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
   const [savedResourceIds, setSavedResourceIds] = useState(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -27,6 +28,7 @@ export default function ResourcesPage() {
       duration: 12,
       source: "Maggie Maggie",
       level: "Cơ bản",
+      isFeatured: true,
       // Link Video thật từ kênh Maggie Maggie
       link: "https://www.youtube.com/watch?v=1v_B5TKH7qY", 
       // Thumbnail thật lấy trực tiếp từ ID video Youtube
@@ -99,6 +101,10 @@ export default function ResourcesPage() {
     { label: "Đã lưu", value: "saved" },
   ];
 
+  const featuredResource = useMemo(() => {
+    return resources.find((r) => r.isFeatured) || resources[0];
+  }, [resources]);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [typeFilter]);
@@ -123,6 +129,26 @@ export default function ResourcesPage() {
     if (type === "article") return { label: "Bài viết chọn lọc", icon: "article", tone: "amber" };
     return { label: "Công cụ tính toán", icon: "tool", tone: "green" };
   }
+
+  const resetFilters = () => {
+    setSearchValue("");
+    setSearchTerm("");
+    setTypeFilter("all");
+  };
+
+  const SkeletonCard = () => (
+    <div style={styles.skeletonCard}>
+      <div style={styles.skeletonThumb} />
+      <div style={styles.skeletonLineWide} />
+      <div style={styles.skeletonLine} />
+      <div style={styles.skeletonChipRow}>
+        <div style={styles.skeletonChip} />
+        <div style={styles.skeletonChip} />
+      </div>
+      <div style={styles.skeletonLine} />
+      <div style={styles.skeletonButton} />
+    </div>
+  );
 
   return (
     <PageTransition>
@@ -158,6 +184,73 @@ export default function ResourcesPage() {
         </div>
       </div>
 
+      {featuredResource && (
+        <div style={styles.spotlightGrid}>
+          <Card
+            style={styles.spotlightCard}
+            animate
+            whileHover={styles.cardHover}
+            onClick={() => window.open(featuredResource.link, "_blank", "noopener,noreferrer")}
+          >
+            <div style={styles.spotlightContent}>
+              <div style={styles.spotlightBadge}>Nội dung nổi bật</div>
+              <h2 style={styles.spotlightTitle}>{featuredResource.title}</h2>
+              <p style={styles.spotlightDesc}>{featuredResource.desc}</p>
+              <div style={styles.spotlightChips}>
+                <span style={styles.metaChip}>
+                  {featuredResource.type === "video" ? "Video" : featuredResource.type === "article" ? "Bài viết" : "Công cụ"}
+                  {featuredResource.duration ? ` • ${featuredResource.duration} phút` : ""}
+                </span>
+                {featuredResource.source && <span style={styles.metaChip}>{featuredResource.source}</span>}
+                {featuredResource.level && <span style={styles.metaChip}>{featuredResource.level}</span>}
+              </div>
+              <div style={styles.spotlightActions}>
+                <button style={styles.primaryBtn} type="button">
+                  Xem ngay
+                </button>
+                <button
+                  style={{ ...styles.secondaryBtn, ...(savedResourceIds.includes(featuredResource.id) ? styles.secondaryBtnActive : {}) }}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleBookmark(featuredResource.id);
+                  }}
+                >
+                  <Icon
+                    name="bookmark"
+                    size={16}
+                    tone={savedResourceIds.includes(featuredResource.id) ? "amber" : "slate"}
+                    background={false}
+                  />
+                  {savedResourceIds.includes(featuredResource.id) ? "Bỏ lưu" : "Lưu"}
+                </button>
+              </div>
+            </div>
+            <div style={styles.spotlightThumbWrap}>
+              <img src={featuredResource.thumbnail} alt={featuredResource.title} style={styles.spotlightThumb} />
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={styles.grid}>
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <SkeletonCard key={idx} />
+          ))}
+        </div>
+      ) : filteredResources.length === 0 ? (
+        <div style={styles.emptyState}>
+          <Icon name="search" size={28} tone="slate" background={false} />
+          <h3 style={styles.emptyTitle}>Không tìm thấy nội dung phù hợp</h3>
+          <p style={styles.emptyDesc}>Thử điều chỉnh bộ lọc hoặc từ khóa để xem các nội dung khác.</p>
+          <div style={styles.emptyActions}>
+            <button type="button" style={styles.secondaryBtn} onClick={resetFilters}>
+              Xoá bộ lọc
+            </button>
+          </div>
+        </div>
+      ) : (
       <div style={styles.grid}>
         {filteredResources.map((item, idx) => (
           <Card
@@ -237,6 +330,7 @@ export default function ResourcesPage() {
           </Card>
         ))}
       </div>
+      )}
     </PageTransition>
   );
 }
@@ -292,6 +386,107 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gap: 16,
+  },
+  spotlightGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 16,
+    marginBottom: 18,
+  },
+  spotlightCard: {
+    gridColumn: "1 / -1",
+    width: "100%",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    alignItems: "stretch",
+    minHeight: 220,
+    cursor: "pointer",
+  },
+  spotlightContent: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    padding: 10,
+  },
+  spotlightThumbWrap: {
+    position: "relative",
+    borderRadius: 16,
+    overflow: "hidden",
+    minHeight: 220,
+  },
+  spotlightThumb: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    filter: "saturate(1.05)",
+  },
+  spotlightBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 10px",
+    borderRadius: 999,
+    backgroundColor: "rgba(94,234,212,0.12)",
+    color: "#67e8f9",
+    fontWeight: 700,
+    fontSize: 12,
+    width: "fit-content",
+  },
+  spotlightTitle: {
+    margin: 0,
+    fontSize: 20,
+    lineHeight: 1.4,
+    color: "var(--text-strong)",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  },
+  spotlightDesc: {
+    margin: "2px 0 4px",
+    fontSize: 14,
+    color: "var(--text-muted)",
+    lineHeight: 1.5,
+    display: "-webkit-box",
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  },
+  spotlightChips: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  spotlightActions: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    marginTop: "auto",
+  },
+  primaryBtn: {
+    padding: "10px 16px",
+    borderRadius: 12,
+    border: "1px solid transparent",
+    background: "linear-gradient(120deg, #5eead4, #38bdf8)",
+    color: "#0b1222",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  secondaryBtn: {
+    padding: "10px 14px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    color: "var(--text-strong)",
+    fontWeight: 600,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    cursor: "pointer",
+  },
+  secondaryBtnActive: {
+    borderColor: "rgba(250,204,21,0.36)",
+    backgroundColor: "rgba(250,204,21,0.12)",
   },
   card: {
     overflow: "hidden",
@@ -427,5 +622,33 @@ const styles = {
     fontSize: 14,
     marginTop: "auto",
     textDecoration: "none",
-  }
+  },
+  emptyState: {
+    border: "1px dashed rgba(255,255,255,0.12)",
+    borderRadius: 16,
+    padding: 28,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(255,255,255,0.02)",
+  },
+  emptyTitle: { margin: 0, fontSize: 18, color: "var(--text-strong)", fontWeight: 700, textAlign: "center" },
+  emptyDesc: { margin: 0, fontSize: 14, color: "var(--text-muted)", textAlign: "center" },
+  emptyActions: { marginTop: 4 },
+  skeletonCard: {
+    borderRadius: 16,
+    padding: 16,
+    border: "1px solid rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.02)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  skeletonThumb: { height: 140, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
+  skeletonLineWide: { height: 14, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.08)", width: "80%" },
+  skeletonLine: { height: 12, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.06)", width: "100%" },
+  skeletonChipRow: { display: "flex", gap: 8 },
+  skeletonChip: { height: 10, width: 70, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)" },
+  skeletonButton: { height: 14, width: 90, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.1)", marginTop: 6 },
 };
