@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ChatbotWidget from "./ChatbotWidget";
 import PageTransition from "./PageTransition";
 import Icon from "./ui/Icon";
+import ScrollToTopButton from "./common/ScrollToTopButton";
 
 const palette = {
   bg: "var(--bg-primary)",
@@ -151,6 +152,7 @@ export default function Layout() {
         </PageTransition>
       </main>
 
+      <ScrollToTopButton />
       <ChatbotWidget />
     </div>
   );

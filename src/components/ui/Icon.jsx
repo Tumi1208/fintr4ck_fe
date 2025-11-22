@@ -25,6 +25,12 @@ const glyphs = {
       <path d="M10.8 12h4.7" strokeOpacity="0.8" />
     </>
   ),
+  arrowUp: ({ stroke }) => (
+    <>
+      <path d="M12 7.5v8.5" />
+      <path d="M8.6 11 12 7.5 15.4 11" />
+    </>
+  ),
   arrowUpRight: ({ stroke }) => (
     <>
       <path d="M9 15.5 15.5 9" />
