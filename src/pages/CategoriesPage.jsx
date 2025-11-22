@@ -164,9 +164,6 @@ export default function CategoriesPage() {
             <p style={styles.lead}>Tổ chức thu/chi rõ ràng để báo cáo mượt mà.</p>
           </div>
           <div style={styles.headActions}>
-            <Button variant="subtle" onClick={handleDeleteSelected} disabled={!hasSelection || bulkLoading}>
-              <Icon name="trash" tone="red" size={16} background={false} /> Xoá đã chọn
-            </Button>
             <Button variant="ghost" onClick={handleDeleteAll} disabled={categories.length === 0 || bulkLoading}>
               <Icon name="trash" tone="red" size={16} /> Xoá toàn bộ
             </Button>
@@ -175,6 +172,23 @@ export default function CategoriesPage() {
             </Button>
           </div>
         </div>
+
+        {hasSelection && (
+          <div style={styles.selectionBar}>
+            <div style={styles.selectionInfo}>
+              <Icon name="checkCircle" tone="green" size={16} background={false} />
+              <span>Đã chọn {selectedIds.length} danh mục</span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button variant="subtle" onClick={() => setSelectedIds([])} disabled={bulkLoading}>
+                Bỏ chọn
+              </Button>
+              <Button variant="ghost" onClick={handleDeleteSelected} disabled={bulkLoading}>
+                <Icon name="trash" tone="red" size={16} background={false} /> Xoá
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div style={styles.statsRow}>
           {stats.map((s) => (
@@ -440,8 +454,9 @@ const styles = {
     transition: "transform 0.15s ease, box-shadow 0.15s ease, border 0.15s ease",
   },
   catCardSelected: {
-    border: "1px solid rgba(34,197,94,0.55)",
-    boxShadow: "0 18px 44px rgba(34,197,94,0.2)",
+    border: "1px solid rgba(34,197,94,0.65)",
+    boxShadow: "0 18px 44px rgba(34,197,94,0.25), 0 0 0 1px rgba(34,197,94,0.15)",
+    background: "linear-gradient(150deg, rgba(34,197,94,0.18), rgba(34,197,94,0.08))",
     transform: "translateY(-2px)",
   },
   catCardTop: { display: "flex", alignItems: "center", marginBottom: 8, gap: 8 },
@@ -502,6 +517,26 @@ const styles = {
     backgroundColor: "rgba(248,113,113,0.14)",
     color: "#f87171",
     borderColor: "rgba(248,113,113,0.35)",
+  },
+  selectionBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "10px 12px",
+    marginBottom: 12,
+    borderRadius: 14,
+    background: "linear-gradient(120deg, rgba(34,197,94,0.12), rgba(59,130,246,0.08))",
+    border: "1px solid rgba(34,197,94,0.25)",
+    boxShadow: "0 12px 32px rgba(0,0,0,0.3)",
+  },
+  selectionInfo: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    color: "var(--text-strong)",
+    fontWeight: 700,
+    letterSpacing: -0.2,
   },
   emptyText: {
     fontSize: 13,
