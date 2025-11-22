@@ -3,6 +3,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import PageTransition from "../components/PageTransition";
 import Card from "../components/ui/Card";
 import Icon from "../components/ui/Icon";
+import { resourcesSeed } from "../data/resourcesSeed";
+
+const FALLBACK_THUMB = "https://placehold.co/640x360/0b1222/94a3b8?text=Fintr4ck";
 
 export default function ResourcesPage() {
   const [searchValue, setSearchValue] = useState("");
@@ -13,67 +16,28 @@ export default function ResourcesPage() {
     if (typeof window === "undefined") return [];
     try {
       const stored = window.localStorage.getItem("fintr4ck_saved_resources");
-      return stored ? JSON.parse(stored) : [];
+      return stored ? JSON.parse(stored).map(String) : [];
     } catch {
       return [];
     }
   });
 
-  const resources = [
-    {
-      id: 1,
-      type: "video",
-      title: "Quy tắc 50/30/20: Bí mật quản lý tài chính",
-      desc: "Phương pháp phân chia thu nhập kinh điển: 50% thiết yếu, 30% mong muốn, 20% tiết kiệm. Hướng dẫn thực hành chi tiết.",
-      duration: 12,
-      source: "Maggie Maggie",
-      level: "Cơ bản",
-      isFeatured: true,
-      // Link Video thật từ kênh Maggie Maggie
-      link: "https://www.youtube.com/watch?v=1v_B5TKH7qY", 
-      // Thumbnail thật lấy trực tiếp từ ID video Youtube
-      thumbnail: "https://img.youtube.com/vi/1v_B5TKH7qY/maxresdefault.jpg", 
-    },
-    {
-      id: 2,
-      type: "article",
-      title: "Sai lầm khiến người trẻ quản lý tài chính kém",
-      desc: "Phung phí chi tiêu, đầu tư ngoài khả năng là những rào cản lớn. Đọc ngay trên VnExpress để tránh mắc phải.",
-      duration: 5,
-      source: "VnExpress",
-      level: "Cơ bản",
-      // Link bài báo thật trên VnExpress
-      link: "https://vnexpress.net/sai-lam-khien-nguoi-tre-quan-ly-tai-chinh-kem-hieu-qua-4580620.html", 
-      // Ảnh minh họa thật (Unsplash) chủ đề 'money stress'
-      thumbnail: "https://images.unsplash.com/photo-1580519542036-c47de6196ba5?q=80&w=800&auto=format&fit=crop",
-    },
-    {
-      id: 3,
-      type: "video",
-      title: "Đầu tư với số vốn nhỏ (50 Triệu) cho người mới",
-      desc: "Podcast chia sẻ cách bắt đầu đầu tư an toàn và hiệu quả cho người mới bắt đầu từ kênh Trọng Tài Chính.",
-      duration: 18,
-      source: "Trọng Tài Chính",
-      level: "Trung cấp",
-      // Link Video thật
-      link: "https://www.youtube.com/watch?v=FBkzd9A7Sk0",
-      // Thumbnail thật từ Youtube
-      thumbnail: "https://img.youtube.com/vi/FBkzd9A7Sk0/maxresdefault.jpg",
-    },
-    {
-      id: 4,
-      type: "tool",
-      title: "Công cụ tính lãi kép Online (VNSC)",
-      desc: "Nhập số vốn, lãi suất và thời gian để thấy sức mạnh của lãi kép. Công cụ uy tín từ VNSC by Finhay.",
-      duration: 2,
-      source: "VNSC by Finhay",
-      level: "Trung cấp",
-      // Link Tool thật
-      link: "https://www.vnsc.vn/cong-cu-tinh-lai-kep/",
-      // Ảnh minh họa thật (Unsplash) chủ đề 'growth chart'
-      thumbnail: "https://www.vnsc.vn/wp-content/uploads/2024/12/lai-kep-topcv.png",
-    }
-  ];
+  const resources = useMemo(
+    () =>
+      resourcesSeed.map((item) => {
+        const normalizedThumb =
+          item.thumbnail ||
+          "https://images.unsplash.com/photo-1553729459-efe14ef6055d?q=80&w=1200&auto=format&fit=crop";
+        return {
+          ...item,
+          desc: item.description || item.desc || "",
+          link: item.url || item.link,
+          duration: item.duration ?? item.readTime ?? null,
+          thumbnail: normalizedThumb,
+        };
+      }),
+    []
+  );
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -84,7 +48,7 @@ export default function ResourcesPage() {
 
   const filteredResources = useMemo(() => {
     return resources.filter((item) => {
-      const isSaved = savedResourceIds.includes(item.id);
+      const isSaved = savedResourceIds.includes(String(item.id));
       if (typeFilter === "saved" && !isSaved) return false;
       const matchesType = typeFilter === "all" || typeFilter === "saved" || item.type === typeFilter;
       if (!searchTerm) return matchesType;
@@ -118,10 +82,16 @@ export default function ResourcesPage() {
   }, [savedResourceIds]);
 
   const toggleBookmark = (id) => {
+    const normalizedId = String(id);
     setSavedResourceIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      return [...prev, id];
+      if (prev.includes(normalizedId)) return prev.filter((x) => x !== normalizedId);
+      return [...prev, normalizedId];
     });
+  };
+
+  const handleImageError = (e) => {
+    e.currentTarget.onerror = null;
+    e.currentTarget.src = FALLBACK_THUMB;
   };
 
   function getTagMeta(type) {
@@ -227,7 +197,12 @@ export default function ResourcesPage() {
               </div>
             </div>
             <div style={styles.spotlightThumbWrap}>
-              <img src={featuredResource.thumbnail} alt={featuredResource.title} style={styles.spotlightThumb} />
+              <img
+                src={featuredResource.thumbnail}
+                alt={featuredResource.title}
+                style={styles.spotlightThumb}
+                onError={handleImageError}
+              />
             </div>
           </Card>
         </div>
@@ -264,7 +239,7 @@ export default function ResourcesPage() {
             tabIndex={0}
           >
             <div style={styles.thumbWrapper}>
-              <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
+              <img src={item.thumbnail} alt={item.title} style={styles.thumb} onError={handleImageError} />
               <button
                 type="button"
                 aria-label={savedResourceIds.includes(item.id) ? "Bỏ lưu" : "Lưu"}
