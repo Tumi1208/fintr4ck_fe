@@ -6,6 +6,7 @@ import ModalDialog from "../components/ModalDialog";
 import { useDialog } from "../hooks/useDialog";
 
 const { API_BASE, getAuthHeaders } = authApiHelpers;
+const DEMO_STORAGE_KEY = "fintr_demo_my_challenges";
 
 const MOTIVATION_MESSAGES = [
   "Tuyệt vời! Bạn vừa tiến gần hơn tới mục tiêu tài chính của mình.",
@@ -110,6 +111,47 @@ export default function MyChallengesPage() {
   const [toasts, setToasts] = useState([]);
   const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
+  const loadDemoJoins = () => {
+    try {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const removeDemoJoin = (id) => {
+    try {
+      const filtered = loadDemoJoins().filter((d) => d._id !== id);
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(filtered));
+    } catch {
+      // ignore
+    }
+  };
+
+  const updateDemoJoin = (id, updater) => {
+    try {
+      const current = loadDemoJoins();
+      const next = current.map((d) => (d._id === id ? updater({ ...d }) : d));
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(next));
+      return next.find((d) => d._id === id);
+    } catch {
+      return null;
+    }
+  };
+
+  const mergeWithDemo = (apiItems = []) => {
+    const demoItems = loadDemoJoins();
+    if (!demoItems.length) return apiItems;
+    const existIds = new Set(apiItems.map((i) => i._id || i.challenge?._id));
+    const merged = [...apiItems];
+    demoItems.forEach((d) => {
+      if (!existIds.has(d._id)) merged.push(d);
+    });
+    return merged;
+  };
+
   async function loadData() {
     try {
       setLoading(true);
@@ -119,7 +161,8 @@ export default function MyChallengesPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Không thể tải danh sách");
-      setItems(Array.isArray(data) ? data : []);
+      const baseItems = Array.isArray(data) ? data : [];
+      setItems(mergeWithDemo(baseItems));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -135,6 +178,35 @@ export default function MyChallengesPage() {
     try {
       setCheckingId(id);
       const prevItem = items.find((i) => i._id === id);
+      if (prevItem?.isDemo) {
+        const already = computeCheckedInToday(prevItem);
+        if (already) {
+          await showDialog({
+            title: "Đã check-in hôm nay",
+            message: "Bạn đã check-in cho challenge này hôm nay rồi.",
+            confirmText: "Đóng",
+          });
+          return;
+        }
+        const updated = updateDemoJoin(id, (draft) => {
+          const now = new Date().toISOString();
+          const prevStreak = draft.currentStreak || 0;
+          draft.currentStreak = prevStreak + 1;
+          draft.completedDays = (draft.completedDays || 0) + 1;
+          draft.lastCheckInDate = now;
+          return draft;
+        });
+        if (updated) {
+          setItems((prev) => prev.map((i) => (i._id === id ? { ...i, ...updated } : i)));
+          await showDialog({
+            title: "Check-in thành công",
+            message: "Bạn đã check-in challenge demo. Tiếp tục giữ vững nhé!",
+            confirmText: "OK",
+            tone: "success",
+          });
+        }
+        return;
+      }
       const res = await fetch(`${API_BASE}/challenges/my-challenges/${id}/check-in`, {
         method: "POST",
         headers: {
@@ -184,6 +256,12 @@ export default function MyChallengesPage() {
   async function handleLeave(id) {
     try {
       setLeavingId(id);
+      const target = items.find((i) => i._id === id);
+      if (target?.isDemo) {
+        removeDemoJoin(id);
+        setItems((prev) => prev.filter((i) => i._id !== id));
+        return;
+      }
       const res = await fetch(`${API_BASE}/challenges/my-challenges/${id}`, {
         method: "DELETE",
         headers: { ...getAuthHeaders() },

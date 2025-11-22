@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { authApiHelpers } from "../api/auth";
@@ -7,6 +7,33 @@ import ModalDialog from "../components/ModalDialog";
 import { useDialog } from "../hooks/useDialog";
 
 const { API_BASE, getAuthHeaders } = authApiHelpers;
+const DEMO_STORAGE_KEY = "fintr_demo_my_challenges";
+const MotionDiv = motion.div;
+
+function getChallengeId(challenge = {}) {
+  return challenge._id || challenge.id || challenge.challengeId || challenge.slug || challenge.uuid || "";
+}
+
+function normalizeTitle(challenge = {}) {
+  return (challenge.title || "").trim().toLowerCase();
+}
+
+function canonicalTitle(challenge = {}) {
+  let t = normalizeTitle(challenge);
+  if (!t) return "";
+  t = t.replace(/đ/g, "d").replace(/Đ/g, "D");
+  return t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function canonicalKey(challenge = {}) {
+  const cid = getChallengeId(challenge);
+  if (cid) return cid;
+  return canonicalTitle(challenge);
+}
 
 const fallbackChallenges = [
   {
@@ -64,66 +91,148 @@ export default function ChallengeListPage() {
   const [joinedIds, setJoinedIds] = useState(new Set());
   const navigate = useNavigate();
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        setError("");
-        const res = await fetch(`${API_BASE}/challenges`, {
-          headers: { ...getAuthHeaders() },
-        });
-        const contentType = res.headers.get("content-type") || "";
-        if (!contentType.includes("application/json")) {
-          const text = await res.text();
-          throw new Error(text?.slice(0, 80) || "Phản hồi không phải JSON");
-        }
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Không thể tải challenge");
-        const incoming = Array.isArray(data) ? data : [];
-        // Nếu API chỉ có vài challenge, trộn thêm fallback để demo phong phú
-        const existIds = new Set(incoming.map((c) => c._id));
-        const merged = [...incoming];
-        for (const fb of fallbackChallenges) {
-          if (!existIds.has(fb._id)) merged.push(fb);
-        }
-        setItems(merged.slice(0, 32));
-      } catch (err) {
-        setError(err.message);
-        setItems(fallbackChallenges); // hiển thị mẫu nếu API chưa sẵn sàng
-      } finally {
-        setLoading(false);
-      }
+  const demoJoins = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
     }
-    async function loadJoined() {
-      try {
-        const res = await fetch(`${API_BASE}/challenges/my-challenges`, {
-          headers: { ...getAuthHeaders() },
-        });
-        const contentType = res.headers.get("content-type") || "";
-        if (!contentType.includes("application/json")) return;
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setJoinedIds(new Set(data.map((uc) => uc.challenge?._id || uc.challenge)));
-        }
-      } catch {
-        // ignore
-      }
-    }
-    load();
-    loadJoined();
   }, []);
+
+  const saveDemoJoin = useCallback(
+    (challenge) => {
+      const challengeId = getChallengeId(challenge);
+      if (!challengeId) return;
+      const current = demoJoins();
+      const exists = current.find((d) => getChallengeId(d) === challengeId);
+      const payload = {
+        _id: challengeId,
+        challenge: {
+          _id: challengeId,
+          title: challenge.title,
+          description: challenge.description,
+          type: challenge.type,
+          durationDays: challenge.durationDays,
+        },
+        status: "ACTIVE",
+        currentStreak: 0,
+        completedDays: 0,
+        joinedAt: new Date().toISOString(),
+        isDemo: true,
+      };
+      const next = exists ? current.map((d) => (getChallengeId(d) === challengeId ? payload : d)) : [...current, payload];
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(next));
+    },
+    [demoJoins]
+  );
+
+  const syncJoinedIds = useCallback(
+    (list = []) => {
+      const apiIds = list.map((uc) => getChallengeId(uc.challenge) || getChallengeId(uc));
+      const demoIds = demoJoins().map((d) => getChallengeId(d));
+      setJoinedIds(new Set([...apiIds, ...demoIds]));
+    },
+    [demoJoins]
+  );
+
+  const fetchJoined = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/challenges/my-challenges`, {
+        headers: { ...getAuthHeaders() },
+      });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) return;
+      const data = await res.json();
+      if (Array.isArray(data)) syncJoinedIds(data);
+    } catch {
+      // ignore
+    }
+  }, [syncJoinedIds]);
+
+  const fetchAllChallenges = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await fetch(`${API_BASE}/challenges`, {
+        headers: { ...getAuthHeaders() },
+      });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        throw new Error(text?.slice(0, 80) || "Phản hồi không phải JSON");
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể tải challenge");
+      const incoming = Array.isArray(data) ? data : [];
+
+      const countValue = (c) =>
+        c.participantCount ??
+        c.participantsCount ??
+        c.joinCount ??
+        (Array.isArray(c.participants) ? c.participants.length : 0) ??
+        0;
+
+      const pickPreferred = (a, b) => {
+        const aFallback = String(getChallengeId(a) || "").startsWith("fallback-");
+        const bFallback = String(getChallengeId(b) || "").startsWith("fallback-");
+        if (aFallback && !bFallback) return b;
+        if (bFallback && !aFallback) return a;
+        return countValue(b) > countValue(a) ? b : a;
+      };
+
+      const candidates = [...incoming, ...fallbackChallenges];
+      const byKey = new Map();
+      candidates.forEach((c, idx) => {
+        const key = canonicalKey(c) || `__idx_${idx}_${getChallengeId(c) || "unknown"}`;
+        const prev = byKey.get(key);
+        if (!prev) {
+          byKey.set(key, c);
+        } else {
+          byKey.set(key, pickPreferred(prev, c));
+        }
+      });
+
+      setItems(Array.from(byKey.values()).slice(0, 32));
+    } catch (err) {
+      setError(err.message);
+      setItems(fallbackChallenges); // hiển thị mẫu nếu API chưa sẵn sàng
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAllChallenges();
+    fetchJoined();
+  }, [fetchAllChallenges, fetchJoined]);
+
+  const markJoined = useCallback((id) => {
+    setJoinedIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const goToProgress = useCallback(() => navigate("/app/my-challenges"), [navigate]);
 
   const normalizedItems = useMemo(
     () =>
-      items.map((c) => ({
-        ...c,
-        participantCount:
-          c.participantCount ??
-          c.participantsCount ??
-          c.joinCount ??
-          (Array.isArray(c.participants) ? c.participants.length : 0) ??
-          Math.max(180, 40 * (c.durationDays || 7)), // fallback ước lượng để có dữ liệu cho leaderboard
-      })),
+      items.map((c) => {
+        const normalizedId = getChallengeId(c);
+        return {
+          ...c,
+          _id: normalizedId || c._id,
+          participantCount:
+            c.participantCount ??
+            c.participantsCount ??
+            c.joinCount ??
+            (Array.isArray(c.participants) ? c.participants.length : 0) ??
+            Math.max(180, 40 * (c.durationDays || 7)), // fallback ước lượng để có dữ liệu cho leaderboard
+        };
+      }),
     [items]
   );
 
@@ -133,34 +242,67 @@ export default function ChallengeListPage() {
     return top3;
   }, [normalizedItems]);
 
+  const topKeys = useMemo(
+    () => new Set(topChallenges.map((c) => canonicalKey(c) || getChallengeId(c) || c._id).filter(Boolean)),
+    [topChallenges]
+  );
+  const topIds = useMemo(() => new Set(topChallenges.map((c) => getChallengeId(c) || c._id).filter(Boolean)), [topChallenges]);
+  const topTitles = useMemo(() => new Set(topChallenges.map((c) => canonicalTitle(c)).filter(Boolean)), [topChallenges]);
+  const excludedTitles = useMemo(
+    () => new Set(["7-ngay-chi-an-o-nha", "tiet-kiem-100-000d-moi-ngay-trong-30-ngay"]),
+    []
+  );
+
+  const gridItems = useMemo(() => {
+    const seenKeys = new Set();
+    const seenTitles = new Set();
+    return normalizedItems.filter((c) => {
+      const key = canonicalKey(c) || getChallengeId(c) || c._id;
+      const titleKey = canonicalTitle(c);
+      if (titleKey && excludedTitles.has(titleKey)) return false;
+      if ((key && topKeys.has(key)) || topIds.has(getChallengeId(c)) || (titleKey && topTitles.has(titleKey))) return false; // không lặp lại top 1/2/3 bên dưới
+      if (key && seenKeys.has(key)) return false;
+      if (titleKey && seenTitles.has(titleKey)) return false;
+      if (key) seenKeys.add(key);
+      if (titleKey) seenTitles.add(titleKey);
+      return true;
+    });
+  }, [normalizedItems, excludedTitles, topIds, topKeys, topTitles]);
+
   async function handleJoin(id) {
     try {
-      if (id.startsWith("fallback-")) {
-        await showDialog({
-          title: "Thông báo",
-          message: "Đây là challenge demo. Vui lòng seed dữ liệu và thử lại.",
-          confirmText: "OK",
-        });
+      if (joinedIds.has(id)) {
+        goToProgress();
         return;
       }
       setJoiningId(id);
-      const res = await fetch(`${API_BASE}/challenges/${id}/join`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-      });
-      const contentType = res.headers.get("content-type") || "";
-      const data = contentType.includes("application/json") ? await res.json() : {};
-      if (!res.ok) throw new Error(data.message || "Không thể tham gia challenge (API có thể chưa bật)");
+      if (id.startsWith("fallback-")) {
+        // Demo challenge: đánh dấu tham gia ngay để UI đồng bộ và lưu trữ local
+        const demoChallenge =
+          normalizedItems.find((c) => getChallengeId(c) === id) || fallbackChallenges.find((c) => getChallengeId(c) === id);
+        if (demoChallenge) saveDemoJoin(demoChallenge);
+        markJoined(id);
+      } else {
+        const res = await fetch(`${API_BASE}/challenges/${id}/join`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        });
+        const contentType = res.headers.get("content-type") || "";
+        const data = contentType.includes("application/json") ? await res.json() : {};
+        if (!res.ok) throw new Error(data.message || "Không thể tham gia challenge (API có thể chưa bật)");
+        markJoined(id); // đồng bộ UI ngay lập tức
+        fetchJoined().catch(() => {});
+      }
       await showDialog({
         title: "Thành công",
         message: "Tham gia challenge thành công! Chuyển tới trang tiến độ của bạn.",
         confirmText: "OK",
         tone: "success",
       });
-      navigate("/app/my-challenges");
+      goToProgress();
     } catch (err) {
       await showDialog({
         title: "Thông báo",
@@ -201,8 +343,10 @@ export default function ChallengeListPage() {
                 const isCenter = orderIdx === 1;
                 const tier = isCenter ? 1 : orderIdx === 0 ? 2 : 3;
                 const height = isCenter ? 230 : orderIdx === 0 ? 150 : 130;
+                const cid = getChallengeId(c);
+                const isJoined = joinedIds.has(cid);
                 return (
-                  <div key={c._id} style={{ ...styles.podiumCol, height }}>
+                  <div key={cid} style={{ ...styles.podiumCol, height }}>
                     <div style={{ ...styles.podium, ...(isCenter ? styles.podiumCenter : orderIdx === 0 ? styles.podiumLeft : styles.podiumRight) }}>
                       <div
                         style={{
@@ -222,19 +366,14 @@ export default function ChallengeListPage() {
                         <span style={styles.lbCount}>{c.participantCount?.toLocaleString("en-US")} người</span>
                         <span style={styles.lbType}>{c.type}</span>
                       </div>
-                      {joinedIds.has(c._id) ? (
-                        <button style={styles.podiumBtn} onClick={() => navigate("/app/my-challenges")}>
-                          Đã tham gia · Xem tiến độ
-                        </button>
-                      ) : (
-                        <button
-                          style={styles.podiumBtn}
-                          onClick={() => handleJoin(c._id)}
-                          disabled={joiningId === c._id}
-                        >
-                          {joiningId === c._id ? "Đang tham gia..." : "Tham gia ngay"}
-                        </button>
-                      )}
+                      <ChallengeActionButton
+                        variant="podium"
+                        isJoined={isJoined}
+                        challengeId={cid}
+                        joiningId={joiningId}
+                        onJoin={() => handleJoin(cid)}
+                        onView={goToProgress}
+                      />
                     </div>
                   </div>
                 );
@@ -244,45 +383,35 @@ export default function ChallengeListPage() {
       )}
 
       <div style={styles.grid}>
-        {normalizedItems.map((c) => (
-          <motion.div
-            key={c._id}
-            style={styles.card}
-            whileHover={styles.cardHover}
-            onClick={() => (joinedIds.has(c._id) ? navigate("/app/my-challenges") : handleJoin(c._id))}
-            role="button"
-            tabIndex={0}
-          >
-            <div style={styles.cardHead}>
-              <span style={styles.badge}>{c.type}</span>
-              <span style={styles.duration}>{c.durationDays} ngày</span>
-            </div>
-            <h3 style={styles.cardTitle}>{c.title}</h3>
-            <p style={styles.cardDesc}>{c.description}</p>
-            {joinedIds.has(c._id) ? (
-              <button
-                style={styles.joinBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate("/app/my-challenges");
-                }}
-              >
-                Đã tham gia · Xem tiến độ
-              </button>
-            ) : (
-              <button
-                style={styles.joinBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleJoin(c._id);
-                }}
-                disabled={joiningId === c._id}
-              >
-                {joiningId === c._id ? "Đang tham gia..." : "Tham gia"}
-              </button>
-            )}
-          </motion.div>
-        ))}
+        {gridItems.map((c) => {
+          const cid = getChallengeId(c);
+          const isJoined = joinedIds.has(cid);
+          return (
+            <MotionDiv
+              key={cid}
+              style={styles.card}
+              whileHover={styles.cardHover}
+              onClick={() => (isJoined ? goToProgress() : handleJoin(cid))}
+              role="button"
+              tabIndex={0}
+            >
+              <div style={styles.cardHead}>
+                <span style={styles.badge}>{c.type}</span>
+                <span style={styles.duration}>{c.durationDays} ngày</span>
+              </div>
+              <h3 style={styles.cardTitle}>{c.title}</h3>
+              <p style={styles.cardDesc}>{c.description}</p>
+              <ChallengeActionButton
+                variant="card"
+                isJoined={isJoined}
+                challengeId={cid}
+                joiningId={joiningId}
+                onJoin={() => handleJoin(cid)}
+                onView={goToProgress}
+              />
+            </MotionDiv>
+          );
+        })}
         {!loading && items.length === 0 && <div style={styles.info}>Chưa có challenge.</div>}
       </div>
 
@@ -426,6 +555,12 @@ const styles = {
     cursor: "pointer",
     boxShadow: "0 14px 32px rgba(14,165,233,0.35)",
   },
+  podiumBtnJoined: {
+    background: "rgba(148,163,184,0.12)",
+    borderColor: "rgba(148,163,184,0.3)",
+    color: "#e2e8f0",
+    boxShadow: "none",
+  },
   card: {
     background: "rgba(226,232,240,0.04)",
     border: "1px solid rgba(148,163,184,0.12)",
@@ -460,6 +595,31 @@ const styles = {
     fontWeight: 800,
     cursor: "pointer",
   },
+  joinBtnJoined: {
+    background: "rgba(148,163,184,0.12)",
+    borderColor: "rgba(148,163,184,0.28)",
+    color: "var(--text-muted)",
+  },
   info: { color: "var(--text-muted)", fontSize: 14 },
   error: { color: "#fca5a5", fontSize: 14 },
 };
+
+function ChallengeActionButton({ variant, isJoined, challengeId, joiningId, onJoin, onView }) {
+  const style = variant === "podium" ? styles.podiumBtn : styles.joinBtn;
+  const joinedStyle = variant === "podium" ? styles.podiumBtnJoined : styles.joinBtnJoined;
+  const label = isJoined ? "Đã tham gia · Xem tiến độ" : joiningId === challengeId ? "Đang tham gia..." : "Tham gia ngay";
+
+  return (
+    <button
+      style={{ ...style, ...(isJoined ? joinedStyle : {}) }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (isJoined) onView();
+        else onJoin();
+      }}
+      disabled={!isJoined && joiningId === challengeId}
+    >
+      {label}
+    </button>
+  );
+}
