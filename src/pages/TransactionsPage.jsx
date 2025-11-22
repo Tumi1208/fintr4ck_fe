@@ -22,6 +22,7 @@ export default function TransactionsPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [categorySaving, setCategorySaving] = useState({});
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
 
   // State riêng cho ô tìm kiếm để xử lý độ trễ (Debounce)
   const [searchTerm, setSearchTerm] = useState(""); 
@@ -126,6 +127,7 @@ export default function TransactionsPage() {
     setCategorySaving((prev) => ({ ...prev, [id]: true }));
     try {
       await apiUpdateTransaction(id, { categoryId: categoryId || null });
+      setEditingCategoryId(null);
       fetchTransactions();
     } catch (err) {
       alert("Cập nhật danh mục thất bại: " + err.message);
@@ -279,7 +281,12 @@ export default function TransactionsPage() {
             </thead>
             <tbody>
               {transactions.map((t) => (
-                <tr key={t._id} style={styles.tr}>
+                <tr
+                  key={t._id}
+                  style={styles.tr}
+                  onMouseEnter={() => setEditingCategoryId(t._id)}
+                  onMouseLeave={() => setEditingCategoryId((prev) => (prev === t._id ? null : prev))}
+                >
                   <td style={{ textAlign: "center" }}>
                     <input type="checkbox" checked={selectedIds.includes(t._id)} onChange={() => toggleSelect(t._id)} />
                   </td>
@@ -287,29 +294,46 @@ export default function TransactionsPage() {
                     {new Date(t.date).toLocaleDateString("vi-VN")}
                   </td>
                   <td>
-                    <div style={styles.catSelectWrap}>
-                      <div style={styles.catSelectDisplay}>
+                    {editingCategoryId === t._id ? (
+                      <div style={styles.catSelectWrap}>
+                        <div style={styles.catSelectDisplay}>
+                          <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
+                          <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
+                          {categorySaving[t._id] && <span style={styles.saveHint}>Đang lưu...</span>}
+                          <span style={styles.caret}>▾</span>
+                        </div>
+                        <select
+                          style={styles.catSelectNative}
+                          value={t.category?._id || ""}
+                          onChange={(e) => handleCategoryChange(t._id, e.target.value)}
+                          disabled={categorySaving[t._id]}
+                          onBlur={() => setEditingCategoryId(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") setEditingCategoryId(null);
+                          }}
+                        >
+                          <option value="">Không phân loại</option>
+                          {categories
+                            .filter((c) => c.type === t.type)
+                            .map((c) => (
+                              <option key={c._id} value={c._id}>
+                                {renderCategoryLabel(c)}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        style={styles.categoryChip}
+                        onClick={() => setEditingCategoryId(t._id)}
+                        title="Chỉnh sửa danh mục"
+                      >
                         <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
                         <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
-                        {categorySaving[t._id] && <span style={styles.saveHint}>Đang lưu...</span>}
-                        <span style={styles.caret}>▾</span>
-                      </div>
-                      <select
-                        style={styles.catSelectNative}
-                        value={t.category?._id || ""}
-                        onChange={(e) => handleCategoryChange(t._id, e.target.value)}
-                        disabled={categorySaving[t._id]}
-                      >
-                        <option value="">Không phân loại</option>
-                        {categories
-                          .filter((c) => c.type === t.type)
-                          .map((c) => (
-                            <option key={c._id} value={c._id}>
-                              {renderCategoryLabel(c)}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
+                        <Icon name="edit" tone="slate" size={14} background={false} />
+                      </button>
+                    )}
                   </td>
                   <td>
                     <span
@@ -455,6 +479,19 @@ const styles = {
   },
   saveHint: { color: "#fbbf24", fontSize: 12, fontWeight: 700 },
   caret: { color: "var(--text-muted)", fontSize: 12, marginLeft: 6 },
+  categoryChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 12px",
+    borderRadius: 14,
+    background: "rgba(226,232,240,0.06)",
+    border: "1px solid rgba(148,163,184,0.2)",
+    color: "var(--text-strong)",
+    fontSize: 14,
+    cursor: "pointer",
+    width: "100%",
+  },
   tableHeader: {
     display: "flex",
     alignItems: "center",
