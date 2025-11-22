@@ -15,8 +15,6 @@ import Badge from "../components/ui/Badge";
 import ModalDialog from "../components/ModalDialog";
 import { useDialog } from "../hooks/useDialog";
 
-const PREFS_KEY = "fintr4ck_prefs";
-
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
 
@@ -40,13 +38,6 @@ export default function SettingsPage() {
   const [dangerLoading, setDangerLoading] = useState(false);
   const [dangerConfirm, setDangerConfirm] = useState("");
 
-  // Preferences (local only)
-  const [prefs, setPrefs] = useState({
-    currency: "VND",
-    defaultRange: "monthly",
-    tips: true,
-  });
-  const [prefsMsg, setPrefsMsg] = useState("");
   const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
   const navigate = useNavigate();
@@ -59,12 +50,6 @@ export default function SettingsPage() {
         setName(data.user.name || "");
       } catch (err) {
         console.error(err);
-      }
-      try {
-        const rawPrefs = localStorage.getItem(PREFS_KEY);
-        if (rawPrefs) setPrefs((p) => ({ ...p, ...JSON.parse(rawPrefs) }));
-      } catch (err) {
-        console.warn("Cannot load prefs", err);
       }
     }
     init();
@@ -120,16 +105,6 @@ export default function SettingsPage() {
       setPwdMsg(err.message || "Không thể đổi mật khẩu");
     } finally {
       setPwdLoading(false);
-    }
-  }
-
-  function handlePrefsSave() {
-    try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-      setPrefsMsg("Đã lưu tuỳ chọn trên thiết bị này");
-      setTimeout(() => setPrefsMsg(""), 2000);
-    } catch (err) {
-      setPrefsMsg("Không thể lưu tuỳ chọn");
     }
   }
 
@@ -297,50 +272,7 @@ export default function SettingsPage() {
         )}
       </Card>
 
-      <Card animate custom={2} title="Preferences" style={styles.card}>
-        <p style={styles.description}>Tuỳ chỉnh hiển thị cục bộ (lưu trên trình duyệt của bạn).</p>
-        <div style={styles.profileRow}>
-          <div style={styles.field}>
-            <label style={styles.label}>Tiền tệ mặc định</label>
-            <select
-              style={styles.select}
-              value={prefs.currency}
-              onChange={(e) => setPrefs((p) => ({ ...p, currency: e.target.value }))}
-            >
-              <option value="VND">VND</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
-          </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Khoảng thời gian mặc định</label>
-            <select
-              style={styles.select}
-              value={prefs.defaultRange}
-              onChange={(e) => setPrefs((p) => ({ ...p, defaultRange: e.target.value }))}
-            >
-              <option value="monthly">Theo tháng</option>
-              <option value="weekly">Theo tuần</option>
-              <option value="quarterly">Theo quý</option>
-            </select>
-          </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Gợi ý mẹo tài chính</label>
-            <Button
-              variant="ghost"
-              onClick={() => setPrefs((p) => ({ ...p, tips: !p.tips }))}
-              style={{ width: "100%", justifyContent: "center" }}
-            >
-              {prefs.tips ? "Đang bật" : "Đang tắt"}
-            </Button>
-            <div style={styles.helper}>Hiển thị mẹo tài chính (ví dụ nhắc nhở chi tiêu) trong Dashboard/Transactions. Lưu cục bộ.</div>
-          </div>
-        </div>
-        {prefsMsg && <div style={styles.infoText}>{prefsMsg}</div>}
-        <Button onClick={handlePrefsSave}>Lưu tuỳ chọn</Button>
-      </Card>
-
-      <Card animate custom={3} title="Danger Zone" style={styles.card}>
+      <Card animate custom={2} title="Danger Zone" style={styles.card}>
         <p style={styles.description}>Xoá tài khoản và toàn bộ dữ liệu liên quan. Hãy cẩn thận.</p>
 
         <InputField
@@ -457,21 +389,6 @@ const styles = {
     minWidth: 180,
     marginBottom: 8,
   },
-  label: {
-    display: "block",
-    fontSize: 13,
-    color: "var(--text-muted)",
-    marginBottom: 4,
-  },
-  select: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: "var(--radius-md)",
-    border: "1px solid rgba(148,163,184,0.25)",
-    backgroundColor: "rgba(226,232,240,0.06)",
-    color: "var(--text-strong)",
-  },
-  helper: { marginTop: 6, fontSize: 12, color: "var(--text-muted)" },
   infoText: {
     fontSize: 13,
     color: "#67e8f9",
