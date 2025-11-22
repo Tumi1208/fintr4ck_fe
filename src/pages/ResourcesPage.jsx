@@ -133,47 +133,60 @@ export default function ResourcesPage() {
 
       <div style={styles.grid}>
         {filteredResources.map((item, idx) => (
-          <Card key={item.id} style={styles.card} animate custom={idx}>
-            <a href={item.link} target="_blank" rel="noreferrer" style={styles.anchor}>
-              <div style={styles.thumbWrapper}>
-                <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
-                {(() => {
-                  const meta = getTagMeta(item.type);
-                  return (
-                    <span style={styles.tag}>
-                      <Icon name={meta.icon} tone={meta.tone} size={16} />
-                      <span>{meta.label}</span>
-                    </span>
-                  );
-                })()}
-                {item.type === "video" && (
-                  <div style={styles.playIcon}>
-                    <Icon name="play" tone="brand" size={30} background={false} />
-                  </div>
-                )}
-              </div>
-              <div style={styles.content}>
-                <h3 style={styles.cardTitle}>{item.title}</h3>
-                <div style={styles.metaRow}>
-                  {(() => {
-                    const chips = [];
-                    if (item.type === "video") chips.push(`Video • ${item.duration} phút`);
-                    else if (item.type === "article") chips.push(`Bài viết • ${item.duration} phút đọc`);
-                    else chips.push("Công cụ • thao tác nhanh");
-                    if (item.source) chips.push(item.source);
-                    if (item.level) chips.push(item.level);
-                    return chips.map((chip, chipIdx) => (
-                      <span key={chipIdx} style={styles.metaChip}>{chip}</span>
-                    ));
-                  })()}
+          <Card
+            key={item.id}
+            style={styles.card}
+            animate
+            custom={idx}
+            whileHover={styles.cardHover}
+            onClick={() => window.open(item.link, "_blank", "noopener,noreferrer")}
+            role="link"
+            tabIndex={0}
+          >
+            <div style={styles.thumbWrapper}>
+              <img src={item.thumbnail} alt={item.title} style={styles.thumb} />
+              {(() => {
+                const meta = getTagMeta(item.type);
+                return (
+                  <span style={styles.tag}>
+                    <Icon name={meta.icon} tone={meta.tone} size={16} />
+                    <span>{meta.label}</span>
+                  </span>
+                );
+              })()}
+              {item.type === "video" && (
+                <div style={styles.playIcon}>
+                  <Icon name="play" tone="brand" size={30} background={false} />
                 </div>
-                <p style={styles.cardDesc}>{item.desc}</p>
-                <span style={styles.linkText}>
-                  Xem chi tiết
-                  <Icon name="link" tone="brand" size={16} background={false} />
-                </span>
+              )}
+            </div>
+            <div style={styles.content}>
+              <h3 style={styles.cardTitle}>{item.title}</h3>
+              <div style={styles.metaRow}>
+                {(() => {
+                  const chips = [];
+                  if (item.type === "video") chips.push(`Video • ${item.duration} phút`);
+                  else if (item.type === "article") chips.push(`Bài viết • ${item.duration} phút đọc`);
+                  else chips.push("Công cụ • thao tác nhanh");
+                  if (item.source) chips.push(item.source);
+                  if (item.level) chips.push(item.level);
+                  return chips.map((chip, chipIdx) => (
+                    <span key={chipIdx} style={styles.metaChip}>{chip}</span>
+                  ));
+                })()}
               </div>
-            </a>
+              <p style={styles.cardDesc}>{item.desc}</p>
+              <a
+                href={item.link}
+                target="_blank"
+                rel="noreferrer"
+                style={styles.linkText}
+                onClick={(e) => e.stopPropagation()}
+              >
+                Xem chi tiết
+                <Icon name="link" tone="brand" size={16} background={false} />
+              </a>
+            </div>
           </Card>
         ))}
       </div>
@@ -240,15 +253,9 @@ const styles = {
     minHeight: 380,
     display: "flex",
     flexDirection: "column",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
   },
-  anchor: {
-    textDecoration: "none",
-    color: "inherit",
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    flex: 1,
-  },
+  cardHover: { y: -4, boxShadow: "0 20px 40px rgba(0,0,0,0.25)", borderColor: "rgba(94,234,212,0.35)" },
   thumbWrapper: {
     height: 180,
     position: "relative",
@@ -352,5 +359,6 @@ const styles = {
     fontWeight: 600,
     fontSize: 14,
     marginTop: "auto",
+    textDecoration: "none",
   }
 };
