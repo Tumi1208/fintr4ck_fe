@@ -14,7 +14,10 @@ import Card from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
+import SelectField from "../components/ui/SelectField";
 import Icon from "../components/ui/Icon";
+import ModalDialog from "../components/ModalDialog";
+import { useDialog } from "../hooks/useDialog";
 
 export default function TransactionsPage() {
   const navigate = useNavigate();
@@ -23,8 +26,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [categorySaving, setCategorySaving] = useState({});
   const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
   // State riêng cho ô tìm kiếm để xử lý độ trễ (Debounce)
   const [searchTerm, setSearchTerm] = useState(""); 
@@ -85,39 +88,75 @@ export default function TransactionsPage() {
   }, [fetchTransactions]);
 
   async function handleDelete(id) {
-    if (!window.confirm("Bạn có chắc muốn xóa giao dịch này?")) return;
+    const confirmed = await showDialog({
+      title: "Xoá giao dịch?",
+      message: "Bạn có chắc muốn xóa giao dịch này? Thao tác không thể hoàn tác.",
+      confirmText: "Xoá",
+      cancelText: "Để sau",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     try {
       await apiDeleteTransaction(id);
       fetchTransactions(); // Tải lại sau khi xóa
     } catch (err) {
-      alert("Lỗi khi xóa: " + err.message);
+      await showDialog({
+        title: "Thông báo",
+        message: "Lỗi khi xóa: " + err.message,
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     }
   }
 
   async function handleDeleteSelected() {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`Xoá ${selectedIds.length} giao dịch đã chọn?`)) return;
+    const confirmed = await showDialog({
+      title: "Xoá giao dịch đã chọn?",
+      message: `Xoá ${selectedIds.length} giao dịch đã chọn? Thao tác không thể hoàn tác.`,
+      confirmText: "Xoá",
+      cancelText: "Để sau",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     try {
       setBulkLoading(true);
       await apiBulkDeleteTransactions(selectedIds);
       setSelectedIds([]);
       fetchTransactions();
     } catch (err) {
-      alert("Lỗi khi xoá giao dịch đã chọn: " + err.message);
+      await showDialog({
+        title: "Thông báo",
+        message: "Lỗi khi xoá giao dịch đã chọn: " + err.message,
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     } finally {
       setBulkLoading(false);
     }
   }
 
   async function handleDeleteAll() {
-    if (!window.confirm("Bạn chắc chắn muốn xoá TOÀN BỘ giao dịch? Thao tác này không thể hoàn tác.")) return;
+    const confirmed = await showDialog({
+      title: "Xoá toàn bộ giao dịch?",
+      message: "Bạn chắc chắn muốn xoá TOÀN BỘ giao dịch? Thao tác này không thể hoàn tác.",
+      confirmText: "Xoá",
+      cancelText: "Để sau",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     try {
       setBulkLoading(true);
       await apiDeleteAllTransactions();
       setSelectedIds([]);
       fetchTransactions();
     } catch (err) {
-      alert("Lỗi khi xoá tất cả giao dịch: " + err.message);
+      await showDialog({
+        title: "Thông báo",
+        message: "Lỗi khi xoá tất cả giao dịch: " + err.message,
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -136,15 +175,17 @@ export default function TransactionsPage() {
   }
 
   async function handleCategoryChange(id, categoryId) {
-    setCategorySaving((prev) => ({ ...prev, [id]: true }));
     try {
       await apiUpdateTransaction(id, { categoryId: categoryId || null });
       setEditingCategoryId(null);
       fetchTransactions();
     } catch (err) {
-      alert("Cập nhật danh mục thất bại: " + err.message);
-    } finally {
-      setCategorySaving((prev) => ({ ...prev, [id]: false }));
+      await showDialog({
+        title: "Thông báo",
+        message: "Cập nhật danh mục thất bại: " + err.message,
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     }
   }
 
@@ -174,28 +215,29 @@ export default function TransactionsPage() {
 
       <Card animate custom={0} style={{ marginBottom: 18 }}>
         <div style={styles.filterBar}>
-          <select
-            style={styles.select}
+          <SelectField
             value={filters.type}
-            onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-          >
-            <option value="all">Tất cả</option>
-            <option value="income">Thu nhập</option>
-            <option value="expense">Chi tiêu</option>
-          </select>
+            onChange={(val) => setFilters({ ...filters, type: val })}
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "income", label: "Thu nhập" },
+              { value: "expense", label: "Chi tiêu" },
+            ]}
+            placeholder="Loại giao dịch"
+            style={{ flex: 1, minWidth: 160 }}
+          />
 
-          <select
-            style={styles.select}
+          <SelectField
             value={filters.categoryId}
-            onChange={(e) => setFilters({ ...filters, categoryId: e.target.value })}
-          >
-            <option value="">Tất cả danh mục</option>
-            {categories.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setFilters({ ...filters, categoryId: val })}
+            options={[
+              { value: "", label: "Tất cả danh mục" },
+              ...categories.map((c) => ({ value: c._id, label: c.name || "Danh mục" })),
+            ]}
+            placeholder="Tất cả danh mục"
+            style={{ flex: 1, minWidth: 220 }}
+            maxHeight={260}
+          />
 
           <div style={{ flex: 1 }}>
             <InputField
@@ -334,46 +376,41 @@ export default function TransactionsPage() {
                     {new Date(t.date).toLocaleDateString("vi-VN")}
                   </td>
                   <td>
-                    <div style={styles.categoryCell}>
-                      <button
-                        type="button"
-                        style={styles.categoryChip}
-                        onClick={() => setEditingCategoryId(t._id)}
-                        title="Chỉnh sửa danh mục"
-                      >
-                        <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
-                        <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
-                        <span style={styles.catTrailing}>
-                          <Icon name="edit" tone="slate" size={12} background={false} />
-                        </span>
-                      </button>
-                      <div
-                        style={{
-                          ...styles.catEditOverlay,
-                          ...(editingCategoryId === t._id ? styles.catEditOverlayActive : {}),
+                    {editingCategoryId === t._id ? (
+                      <SelectField
+                        value={t.category?._id || ""}
+                        onChange={(val) => {
+                          handleCategoryChange(t._id, val);
+                          setEditingCategoryId(null);
                         }}
-                      >
-                        <select
-                          style={styles.catSelectInline}
-                          value={t.category?._id || ""}
-                          onChange={(e) => handleCategoryChange(t._id, e.target.value)}
-                          disabled={categorySaving[t._id]}
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") setEditingCategoryId(null);
-                          }}
-                        >
-                          <option value="">Không phân loại</option>
-                          {categories
+                        options={[
+                          { value: "", label: "Không phân loại" },
+                          ...categories
                             .filter((c) => c.type === t.type)
-                            .map((c) => (
-                              <option key={c._id} value={c._id}>
-                                {renderCategoryLabel(c)}
-                              </option>
-                            ))}
-                        </select>
+                            .map((c) => ({ value: c._id, label: renderCategoryLabel(c) })),
+                        ]}
+                        placeholder="Chọn danh mục"
+                        dropdownWidth={260}
+                        maxHeight={240}
+                        density="compact"
+                        style={{ width: "100%", minWidth: 0 }}
+                      />
+                    ) : (
+                      <div style={styles.categoryCell}>
+                        <button
+                          type="button"
+                          style={styles.categoryChip}
+                          onClick={() => setEditingCategoryId(t._id)}
+                          title="Chỉnh sửa danh mục"
+                        >
+                          <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
+                          <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
+                          <span style={styles.catTrailing}>
+                            <Icon name="edit" tone="slate" size={12} background={false} />
+                          </span>
+                        </button>
                       </div>
-                    </div>
+                    )}
                   </td>
                   <td>
                     <span
@@ -409,6 +446,17 @@ export default function TransactionsPage() {
           </table>
         )}
       </Card>
+
+      <ModalDialog
+        open={!!dialog}
+        title={dialog?.title}
+        message={dialog?.message}
+        confirmText={dialog?.confirmText}
+        cancelText={dialog?.cancelText}
+        tone={dialog?.tone}
+        onConfirm={handleConfirm}
+        onCancel={dialog?.cancelText ? handleCancel : handleConfirm}
+      />
     </PageTransition>
   );
 }
@@ -478,16 +526,6 @@ const styles = {
   title: { margin: "8px 0 4px", color: "var(--text-strong)", fontSize: 26, letterSpacing: -0.3 },
   lead: { margin: 0, color: "var(--text-muted)" },
   filterBar: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 12, alignItems: "center" },
-  select: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: "var(--radius-md)",
-    border: "1px solid rgba(148,163,184,0.25)",
-    background: "rgba(226,232,240,0.05)",
-    color: "var(--text-strong)",
-    fontSize: 14,
-    outline: "none",
-  },
   catSelectWrap: { position: "relative", display: "inline-flex", alignItems: "center", minWidth: 220 },
   catSelectDisplay: {
     display: "inline-flex",
@@ -533,18 +571,9 @@ const styles = {
     opacity: 0,
     pointerEvents: "none",
     transition: "opacity 0.12s ease",
+    zIndex: 10,
   },
   catEditOverlayActive: { opacity: 1, pointerEvents: "auto" },
-  catSelectInline: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 14,
-    border: "1px solid transparent",
-    background: "transparent",
-    color: "transparent",
-    padding: "10px 12px",
-    opacity: 0.01,
-  },
   categoryCell: { position: "relative", minWidth: 240 },
   tableHeader: {
     display: "flex",

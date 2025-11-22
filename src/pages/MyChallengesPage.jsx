@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { authApiHelpers } from "../api/auth";
 import StreakBadge from "../components/StreakBadge";
 import PageTransition from "../components/PageTransition";
+import ModalDialog from "../components/ModalDialog";
+import { useDialog } from "../hooks/useDialog";
 
 const { API_BASE, getAuthHeaders } = authApiHelpers;
 
@@ -104,9 +106,9 @@ export default function MyChallengesPage() {
   const [error, setError] = useState("");
   const [checkingId, setCheckingId] = useState("");
   const [leavingId, setLeavingId] = useState("");
-  const [confirmLeaveId, setConfirmLeaveId] = useState("");
   const [sortPreset, setSortPreset] = useState("progress");
   const [toasts, setToasts] = useState([]);
+  const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
   async function loadData() {
     try {
@@ -145,7 +147,12 @@ export default function MyChallengesPage() {
       const prevProgress = prevItem ? progressPercent(prevItem) : 0;
       const newProgress = progressPercent({ ...prevItem, ...data });
       const streak = data.currentStreak || 0;
-      alert(getMotivationMessageForStreak(streak));
+      await showDialog({
+        title: "Check-in thành công",
+        message: getMotivationMessageForStreak(streak),
+        confirmText: "OK",
+        tone: "success",
+      });
       setItems((prev) =>
         prev.map((i) =>
           i._id === id
@@ -168,7 +175,7 @@ export default function MyChallengesPage() {
         addToast(`Bạn vừa đạt ${top.label} 🎉`);
       }
     } catch (err) {
-      alert(err.message);
+      await showDialog({ title: "Thông báo", message: err.message, confirmText: "Đóng", tone: "danger" });
     } finally {
       setCheckingId("");
     }
@@ -185,7 +192,7 @@ export default function MyChallengesPage() {
       if (!res.ok) throw new Error(data.message || "Không thể huỷ tham gia");
       loadData();
     } catch (err) {
-      alert(err.message);
+      await showDialog({ title: "Thông báo", message: err.message, confirmText: "Đóng", tone: "danger" });
     } finally {
       setLeavingId("");
     }
@@ -359,7 +366,16 @@ export default function MyChallengesPage() {
                 )}
                 <button
                   style={{ ...styles.leaveBtn, opacity: leavingId === item._id ? 0.7 : 1 }}
-                  onClick={() => setConfirmLeaveId(item._id)}
+                  onClick={async () => {
+                    const confirmed = await showDialog({
+                      title: "Huỷ sẽ reset chuỗi ngày",
+                      message: "Bạn chắc chắn huỷ?",
+                      confirmText: "Huỷ",
+                      cancelText: "Để sau",
+                      tone: "danger",
+                    });
+                    if (confirmed) handleLeave(item._id);
+                  }}
                   disabled={leavingId === item._id}
                 >
                   {leavingId === item._id ? "Đang huỷ..." : "Huỷ tham gia"}
@@ -371,35 +387,16 @@ export default function MyChallengesPage() {
         </div>
         {!loading && items.length === 0 && <div style={styles.info}>Bạn chưa tham gia challenge nào.</div>}
       </div>
-
-      {confirmLeaveId && (
-        <div style={styles.modalOverlay} role="dialog" aria-modal="true">
-          <div style={styles.modalCard}>
-            <div style={styles.modalTitle}>Huỷ sẽ reset chuỗi ngày. Bạn chắc chắn huỷ?</div>
-            <div style={styles.modalActions}>
-              <button
-                style={styles.modalCancel}
-                onClick={() => {
-                  setConfirmLeaveId("");
-                }}
-              >
-                Để sau
-              </button>
-              <button
-                style={{ ...styles.modalConfirm, opacity: leavingId === confirmLeaveId ? 0.8 : 1 }}
-                onClick={() => {
-                  const targetId = confirmLeaveId;
-                  setConfirmLeaveId("");
-                  handleLeave(targetId);
-                }}
-                disabled={leavingId === confirmLeaveId}
-              >
-                Huỷ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalDialog
+        open={!!dialog}
+        title={dialog?.title}
+        message={dialog?.message}
+        confirmText={dialog?.confirmText}
+        cancelText={dialog?.cancelText}
+        tone={dialog?.tone}
+        onConfirm={handleConfirm}
+        onCancel={dialog?.cancelText ? handleCancel : handleConfirm}
+      />
     </PageTransition>
   );
 }
@@ -711,44 +708,5 @@ const styles = {
     borderRadius: 12,
     fontWeight: 800,
     boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-  },
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.45)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 40,
-    padding: 16,
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 360,
-    background: "rgba(20,25,45,0.96)",
-    border: "1px solid rgba(148,163,184,0.2)",
-    borderRadius: 14,
-    padding: 16,
-    boxShadow: "0 12px 30px rgba(0,0,0,0.4)",
-  },
-  modalTitle: { color: "var(--text-strong)", fontSize: 14, fontWeight: 800, marginBottom: 12, lineHeight: 1.4 },
-  modalActions: { display: "flex", justifyContent: "flex-end", gap: 8 },
-  modalCancel: {
-    padding: "8px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(148,163,184,0.25)",
-    background: "rgba(255,255,255,0.06)",
-    color: "var(--text-strong)",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  modalConfirm: {
-    padding: "8px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(239,68,68,0.5)",
-    background: "rgba(239,68,68,0.18)",
-    color: "#fecdd3",
-    fontWeight: 800,
-    cursor: "pointer",
   },
 };

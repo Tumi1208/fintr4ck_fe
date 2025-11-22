@@ -12,6 +12,8 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
 import Badge from "../components/ui/Badge";
+import ModalDialog from "../components/ModalDialog";
+import { useDialog } from "../hooks/useDialog";
 
 const PREFS_KEY = "fintr4ck_prefs";
 
@@ -45,6 +47,7 @@ export default function SettingsPage() {
     tips: true,
   });
   const [prefsMsg, setPrefsMsg] = useState("");
+  const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
   const navigate = useNavigate();
 
@@ -131,13 +134,14 @@ export default function SettingsPage() {
   }
 
   async function handleDeleteAccount() {
-    if (
-      !window.confirm(
-        "Bạn chắc chắn muốn xoá tài khoản? Hành động này không thể hoàn tác."
-      )
-    ) {
-      return;
-    }
+    const confirmed = await showDialog({
+      title: "Xoá tài khoản?",
+      message: "Bạn chắc chắn muốn xoá tài khoản? Hành động này không thể hoàn tác.",
+      confirmText: "Xoá",
+      cancelText: "Để sau",
+      tone: "danger",
+    });
+    if (!confirmed) return;
 
     try {
       setDangerLoading(true);
@@ -145,7 +149,12 @@ export default function SettingsPage() {
       localStorage.removeItem("fintr4ck_token");
       navigate("/login");
     } catch (err) {
-      alert(err.message || "Không thể xoá tài khoản");
+      await showDialog({
+        title: "Thông báo",
+        message: err.message || "Không thể xoá tài khoản",
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     } finally {
       setDangerLoading(false);
     }
@@ -349,6 +358,17 @@ export default function SettingsPage() {
           {dangerLoading ? "Đang xoá..." : "Xoá tài khoản"}
         </Button>
       </Card>
+
+      <ModalDialog
+        open={!!dialog}
+        title={dialog?.title}
+        message={dialog?.message}
+        confirmText={dialog?.confirmText}
+        cancelText={dialog?.cancelText}
+        tone={dialog?.tone}
+        onConfirm={handleConfirm}
+        onCancel={dialog?.cancelText ? handleCancel : handleConfirm}
+      />
     </PageTransition>
   );
 }

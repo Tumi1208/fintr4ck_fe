@@ -9,9 +9,12 @@ import { Doughnut, Bar } from "react-chartjs-2";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import InputField from "../components/ui/InputField";
+import SelectField from "../components/ui/SelectField";
 import Badge from "../components/ui/Badge";
 import Icon from "../components/ui/Icon";
 import PageTransition from "../components/PageTransition";
+import ModalDialog from "../components/ModalDialog";
+import { useDialog } from "../hooks/useDialog";
 import { globalStyles } from "../utils/animations";
 import { getBudgets, removeBudget, saveBudget } from "../utils/budgets";
 
@@ -212,6 +215,7 @@ export default function DashboardPage() {
   const [isNarrow, setIsNarrow] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 1100 : true));
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [budgetForm, setBudgetForm] = useState({ id: "", categoryId: "", limitAmount: "", monthKey: "" });
+  const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
   const quickFormRef = useRef(null);
 
   async function fetchAllData() {
@@ -468,10 +472,17 @@ export default function DashboardPage() {
 
   function handleDeleteBudget(id) {
     if (!id) return;
-    const confirmed = window.confirm("Bạn có chắc muốn xóa ngân sách này?");
-    if (!confirmed) return;
-    removeBudget(id);
-    setBudgets(getBudgets());
+    showDialog({
+      title: "Xoá ngân sách?",
+      message: "Bạn có chắc muốn xóa ngân sách này?",
+      confirmText: "Xoá",
+      cancelText: "Để sau",
+      tone: "danger",
+    }).then((confirmed) => {
+      if (!confirmed) return;
+      removeBudget(id);
+      setBudgets(getBudgets());
+    });
   }
 
   function renderTxnIcon(t) {
@@ -501,23 +512,23 @@ export default function DashboardPage() {
         </div>
         <div style={styles.rangeWrap}>
           <div style={styles.rangeRow}>
-            <select
-              value={presetKey}
-              onChange={(e) => {
-                const key = e.target.value;
-                setPresetKey(key);
-                if (key !== "custom") {
-                  setDateRange(getPresetRange(key));
-                }
-              }}
-              style={styles.rangeSelect}
-            >
-              <option value="thisMonth">Tháng này</option>
-              <option value="lastMonth">Tháng trước</option>
-              <option value="last3Months">3 tháng gần đây</option>
-              <option value="thisYear">Năm nay</option>
-              <option value="custom">Tùy chọn</option>
-            </select>
+              <SelectField
+                value={presetKey}
+                onChange={(key) => {
+                  setPresetKey(key);
+                  if (key !== "custom") setDateRange(getPresetRange(key));
+                }}
+                options={[
+                  { value: "thisMonth", label: "Tháng này" },
+                  { value: "lastMonth", label: "Tháng trước" },
+                  { value: "last3Months", label: "3 tháng gần đây" },
+                  { value: "thisYear", label: "Năm nay" },
+                  { value: "custom", label: "Tùy chọn" },
+                ]}
+                placeholder="Chọn mốc thời gian"
+                style={{ minWidth: 200 }}
+                density="compact"
+              />
             {presetKey === "custom" && (
               <>
                 <input
@@ -681,30 +692,33 @@ export default function DashboardPage() {
             )}
           </Card>
 
-          <Card animate custom={2} title="⚡ Ghi nhanh giao dịch" style={{ ...styles.card, ...styles.wideCard }}>
-            <div ref={quickFormRef}>
-            <form onSubmit={handleQuickAdd} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
+            <Card animate custom={2} title="⚡ Ghi nhanh giao dịch" style={{ ...styles.card, ...styles.wideCard }}>
+              <div ref={quickFormRef}>
+              <form onSubmit={handleQuickAdd} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
               <div style={styles.formRow}>
-                <select
-                  style={styles.select}
+                <SelectField
                   value={quickForm.type}
-                  onChange={(e) => setQuickForm({ ...quickForm, type: e.target.value })}
-                >
-                  <option value="expense">Chi tiêu</option>
-                  <option value="income">Thu nhập</option>
-                </select>
-                <select
-                  style={styles.select}
+                  onChange={(val) => setQuickForm({ ...quickForm, type: val })}
+                  options={[
+                    { value: "expense", label: "Chi tiêu" },
+                    { value: "income", label: "Thu nhập" },
+                  ]}
+                  placeholder="Loại giao dịch"
+                  style={{ minWidth: 160 }}
+                  density="compact"
+                />
+                <SelectField
                   value={quickForm.categoryId}
-                  onChange={(e) => setQuickForm({ ...quickForm, categoryId: e.target.value })}
-                >
-                  <option value="">Chọn danh mục</option>
-                  {categories.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setQuickForm({ ...quickForm, categoryId: val })}
+                  options={[
+                    { value: "", label: "Chọn danh mục" },
+                    ...categories.map((c) => ({ value: c._id, label: c.name || "Danh mục" })),
+                  ]}
+                  placeholder="Chọn danh mục"
+                  style={{ minWidth: 220 }}
+                  maxHeight={220}
+                  density="compact"
+                />
               </div>
 
               <InputField
@@ -825,18 +839,16 @@ export default function DashboardPage() {
           </button>
         </div>
         <form onSubmit={handleSaveBudget} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <select
-                style={styles.select}
+              <SelectField
                 value={budgetForm.categoryId}
-                onChange={(e) => setBudgetForm((prev) => ({ ...prev, categoryId: e.target.value }))}
-              >
-                <option value="">Chọn danh mục</option>
-                {categories.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setBudgetForm((prev) => ({ ...prev, categoryId: val }))}
+                options={[
+                  { value: "", label: "Chọn danh mục" },
+                  ...categories.map((c) => ({ value: c._id, label: c.name || "Danh mục" })),
+                ]}
+                placeholder="Chọn danh mục"
+                maxHeight={240}
+              />
               <InputField
                 type="number"
                 placeholder="Hạn mức (VND)"
@@ -848,6 +860,17 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      <ModalDialog
+        open={!!dialog}
+        title={dialog?.title}
+        message={dialog?.message}
+        confirmText={dialog?.confirmText}
+        cancelText={dialog?.cancelText}
+        tone={dialog?.tone}
+        onConfirm={handleConfirm}
+        onCancel={dialog?.cancelText ? handleCancel : handleConfirm}
+      />
     </PageTransition>
   );
 }
@@ -888,14 +911,6 @@ const styles = {
   lead: { margin: 0, color: "#e2e8f0", fontSize: 14 },
   rangeWrap: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 },
   rangeRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },
-  rangeSelect: {
-    padding: "10px 12px",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    color: "var(--text-strong)",
-    cursor: "pointer",
-  },
   rangeInput: {
     padding: "10px 12px",
     borderRadius: 10,
@@ -991,17 +1006,6 @@ const styles = {
     color: "var(--text-strong)",
   },
   formRow: { display: "flex", gap: 10, flexWrap: "wrap" },
-  select: {
-    flex: 1,
-    minWidth: 180,
-    padding: "12px 14px",
-    borderRadius: "var(--radius-md)",
-    border: "1px solid rgba(148,163,184,0.25)",
-    background: "rgba(226,232,240,0.05)",
-    color: "var(--text-strong)",
-    fontSize: 14,
-    outline: "none",
-  },
   transactionRow: {
     display: "flex",
     alignItems: "center",

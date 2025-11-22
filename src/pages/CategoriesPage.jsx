@@ -11,6 +11,8 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
 import Icon from "../components/ui/Icon";
+import ModalDialog from "../components/ModalDialog";
+import { useDialog } from "../hooks/useDialog";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -24,6 +26,7 @@ export default function CategoriesPage() {
     icon: "",
   });
   const [error, setError] = useState("");
+  const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
   useEffect(() => {
     fetchCategories();
@@ -85,18 +88,25 @@ export default function CategoriesPage() {
   }
 
   async function handleDelete(cat) {
-    if (
-      !window.confirm(
-        `Xoá danh mục "${cat.name}"? Các giao dịch sẽ mất thông tin danh mục này.`
-      )
-    )
-      return;
+    const confirmed = await showDialog({
+      title: "Xoá danh mục?",
+      message: `Xoá danh mục "${cat.name}"? Các giao dịch sẽ mất thông tin danh mục này.`,
+      confirmText: "Xoá",
+      cancelText: "Để sau",
+      tone: "danger",
+    });
+    if (!confirmed) return;
 
     try {
       await apiDeleteCategory(cat._id);
       await fetchCategories();
     } catch (err) {
-      alert(err.message || "Không thể xoá danh mục");
+      await showDialog({
+        title: "Thông báo",
+        message: err.message || "Không thể xoá danh mục",
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     }
   }
 
@@ -110,13 +120,25 @@ export default function CategoriesPage() {
 
   async function handleDeleteSelected() {
     if (!hasSelection) return;
-    if (!window.confirm(`Xoá ${selectedIds.length} danh mục đã chọn?`)) return;
+    const confirmed = await showDialog({
+      title: "Xoá danh mục đã chọn?",
+      message: `Xoá ${selectedIds.length} danh mục đã chọn? Các giao dịch liên quan sẽ mất liên kết.`,
+      confirmText: "Xoá",
+      cancelText: "Để sau",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setBulkLoading(true);
     try {
       await Promise.all(selectedIds.map((id) => apiDeleteCategory(id).catch(() => null)));
       await fetchCategories();
     } catch (err) {
-      alert(err.message || "Không thể xoá danh mục đã chọn");
+      await showDialog({
+        title: "Thông báo",
+        message: err.message || "Không thể xoá danh mục đã chọn",
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -124,18 +146,25 @@ export default function CategoriesPage() {
 
   async function handleDeleteAll() {
     if (categories.length === 0) return;
-    if (
-      !window.confirm(
-        "Bạn chắc chắn xoá toàn bộ danh mục? Các giao dịch sẽ bị mất liên kết danh mục."
-      )
-    )
-      return;
+    const confirmed = await showDialog({
+      title: "Xoá toàn bộ danh mục?",
+      message: "Bạn chắc chắn xoá toàn bộ danh mục? Các giao dịch sẽ bị mất liên kết danh mục.",
+      confirmText: "Xoá",
+      cancelText: "Để sau",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setBulkLoading(true);
     try {
       await Promise.all(categories.map((c) => apiDeleteCategory(c._id).catch(() => null)));
       await fetchCategories();
     } catch (err) {
-      alert(err.message || "Không thể xoá toàn bộ danh mục");
+      await showDialog({
+        title: "Thông báo",
+        message: err.message || "Không thể xoá toàn bộ danh mục",
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -277,6 +306,17 @@ export default function CategoriesPage() {
           </div>
         </div>
       )}
+
+      <ModalDialog
+        open={!!dialog}
+        title={dialog?.title}
+        message={dialog?.message}
+        confirmText={dialog?.confirmText}
+        cancelText={dialog?.cancelText}
+        tone={dialog?.tone}
+        onConfirm={handleConfirm}
+        onCancel={dialog?.cancelText ? handleCancel : handleConfirm}
+      />
     </PageTransition>
   );
 }

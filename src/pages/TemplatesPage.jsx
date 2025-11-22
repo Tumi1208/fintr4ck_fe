@@ -5,9 +5,12 @@ import PageTransition from "../components/PageTransition";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Icon from "../components/ui/Icon";
+import ModalDialog from "../components/ModalDialog";
+import { useDialog } from "../hooks/useDialog";
 
 export default function TemplatesPage() {
   const [loading, setLoading] = useState(false);
+  const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
   useEffect(() => {
     const styleId = "tpl-best-choice-style";
@@ -432,8 +435,15 @@ export default function TemplatesPage() {
 
   // Hàm xử lý "Batch Create" (Tạo hàng loạt)
   async function handleApply(template) {
-    if (!window.confirm(`Bạn có chắc muốn thêm ${template.categories.length} danh mục của gói "${template.title}"?`)) return;
-    
+    const confirmed = await showDialog({
+      title: "Áp dụng gói danh mục?",
+      message: `Bạn có chắc muốn thêm ${template.categories.length} danh mục của gói "${template.title}"?`,
+      confirmText: "Thêm",
+      cancelText: "Để sau",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
     setLoading(true);
     let successCount = 0;
     let failCount = 0;
@@ -449,10 +459,20 @@ export default function TemplatesPage() {
 
       await Promise.all(promises);
 
-      alert(`Đã thêm xong!\n- Thành công: ${successCount}\n- Bỏ qua (đã có): ${failCount}`);
+      await showDialog({
+        title: "Hoàn tất",
+        message: `Đã thêm xong!\n- Thành công: ${successCount}\n- Bỏ qua (đã có): ${failCount}`,
+        confirmText: "OK",
+        tone: "success",
+      });
 
     } catch (err) {
-      alert("Có lỗi xảy ra: " + err.message);
+      await showDialog({
+        title: "Thông báo",
+        message: "Có lỗi xảy ra: " + err.message,
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     } finally {
       setLoading(false);
     }
@@ -542,6 +562,17 @@ export default function TemplatesPage() {
           );
         })}
       </div>
+
+      <ModalDialog
+        open={!!dialog}
+        title={dialog?.title}
+        message={dialog?.message}
+        confirmText={dialog?.confirmText}
+        cancelText={dialog?.cancelText}
+        tone={dialog?.tone}
+        onConfirm={handleConfirm}
+        onCancel={dialog?.cancelText ? handleCancel : handleConfirm}
+      />
     </PageTransition>
   );
 }

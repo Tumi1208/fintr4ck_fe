@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApiHelpers } from "../api/auth";
 import PageTransition from "../components/PageTransition";
+import ModalDialog from "../components/ModalDialog";
+import { useDialog } from "../hooks/useDialog";
 
 const { API_BASE, getAuthHeaders } = authApiHelpers;
 
@@ -57,6 +59,7 @@ export default function ChallengeListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [joiningId, setJoiningId] = useState("");
+  const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
   const [joinedIds, setJoinedIds] = useState(new Set());
   const navigate = useNavigate();
 
@@ -132,7 +135,11 @@ export default function ChallengeListPage() {
   async function handleJoin(id) {
     try {
       if (id.startsWith("fallback-")) {
-        alert("Đây là challenge demo. Vui lòng seed dữ liệu và thử lại.");
+        await showDialog({
+          title: "Thông báo",
+          message: "Đây là challenge demo. Vui lòng seed dữ liệu và thử lại.",
+          confirmText: "OK",
+        });
         return;
       }
       setJoiningId(id);
@@ -146,10 +153,20 @@ export default function ChallengeListPage() {
       const contentType = res.headers.get("content-type") || "";
       const data = contentType.includes("application/json") ? await res.json() : {};
       if (!res.ok) throw new Error(data.message || "Không thể tham gia challenge (API có thể chưa bật)");
-      alert("Tham gia challenge thành công! Chuyển tới trang tiến độ của bạn.");
+      await showDialog({
+        title: "Thành công",
+        message: "Tham gia challenge thành công! Chuyển tới trang tiến độ của bạn.",
+        confirmText: "OK",
+        tone: "success",
+      });
       navigate("/app/my-challenges");
     } catch (err) {
-      alert(err.message);
+      await showDialog({
+        title: "Thông báo",
+        message: err.message,
+        confirmText: "Đóng",
+        tone: "danger",
+      });
     } finally {
       setJoiningId("");
     }
@@ -251,6 +268,17 @@ export default function ChallengeListPage() {
         ))}
         {!loading && items.length === 0 && <div style={styles.info}>Chưa có challenge.</div>}
       </div>
+
+      <ModalDialog
+        open={!!dialog}
+        title={dialog?.title}
+        message={dialog?.message}
+        confirmText={dialog?.confirmText}
+        cancelText={dialog?.cancelText}
+        tone={dialog?.tone}
+        onConfirm={handleConfirm}
+        onCancel={dialog?.cancelText ? handleCancel : handleConfirm}
+      />
     </PageTransition>
   );
 }
