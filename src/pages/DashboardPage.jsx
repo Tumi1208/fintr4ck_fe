@@ -13,7 +13,7 @@ import Badge from "../components/ui/Badge";
 import Icon from "../components/ui/Icon";
 import PageTransition from "../components/PageTransition";
 import { globalStyles } from "../utils/animations";
-import { getBudgets, saveBudget } from "../utils/budgets";
+import { getBudgets, removeBudget, saveBudget } from "../utils/budgets";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -116,6 +116,30 @@ function buildDelta(current, previous, { invert = false } = {}) {
 const formatCurrency = (value) => `$${Number(value || 0).toLocaleString("en-US")}`;
 const formatPercent = (value) => `${Number.isFinite(value) ? value.toFixed(1) : "0.0"}%`;
 
+function formatCategoryName(name = "") {
+  const normalized = name
+    .toString()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+  const mapping = {
+    shopping: "Shopping",
+    food: "Food",
+    transport: "Transport",
+    entertainment: "Entertainment",
+    "luong cung": "Lương cứng",
+    "luong co dinh": "Lương cố định",
+  };
+  if (mapping[normalized]) return mapping[normalized];
+  return name
+    .toString()
+    .split(/\s+/)
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1).toLowerCase() : ""))
+    .join(" ")
+    .trim();
+}
+
 export default function DashboardPage() {
   const quotes = [
     { author: "Warren Buffett", text: "Đừng tiết kiệm sau khi tiêu, hãy tiêu sau khi tiết kiệm." },
@@ -171,13 +195,23 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState(() => getPresetRange("thisMonth"));
   const [presetKey, setPresetKey] = useState("thisMonth");
-  const [quickForm, setQuickForm] = useState({ type: "expense", categoryId: "", note: "", amount: "" });
+  const [quickForm, setQuickForm] = useState(() => {
+    const now = new Date();
+    return {
+      type: "expense",
+      categoryId: "",
+      note: "",
+      amount: "",
+      date: now.toISOString().slice(0, 10),
+      time: now.toTimeString().slice(0, 5),
+    };
+  });
   const [quickError, setQuickError] = useState("");
   const [chartType, setChartType] = useState("bar");
   const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * quotes.length));
   const [isNarrow, setIsNarrow] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 1100 : true));
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
-  const [budgetForm, setBudgetForm] = useState({ categoryId: "", limitAmount: "" });
+  const [budgetForm, setBudgetForm] = useState({ id: "", categoryId: "", limitAmount: "", monthKey: "" });
   const quickFormRef = useRef(null);
 
   async function fetchAllData() {
@@ -264,13 +298,22 @@ export default function DashboardPage() {
     try {
       setQuickError("");
       if (!quickForm.amount) return setQuickError("Vui lòng nhập số tiền!");
+      if (!quickForm.date) return setQuickError("Vui lòng chọn ngày giao dịch!");
+      const isoDateTime = new Date(`${quickForm.date}T${quickForm.time || "00:00"}`);
+      if (Number.isNaN(isoDateTime.getTime())) return setQuickError("Ngày/giờ không hợp lệ");
       await apiCreateTransaction({
         ...quickForm, 
         amount: Number(quickForm.amount), 
         categoryId: quickForm.categoryId || undefined,
-        date: new Date().toISOString().slice(0, 10)
+        date: isoDateTime.toISOString()
       });
-      setQuickForm((prev) => ({ ...prev, note: "", amount: "" }));
+      setQuickForm((prev) => ({
+        ...prev,
+        note: "",
+        amount: "",
+        date: prev.date || new Date().toISOString().slice(0, 10),
+        time: prev.time || new Date().toTimeString().slice(0, 5),
+      }));
       await fetchAllData();
     } catch (err) { setQuickError(err.message); }
   }
@@ -335,9 +378,10 @@ export default function DashboardPage() {
         let tone = "#22c55e";
         if (ratio >= 1) tone = "#ef4444";
         else if (ratio >= 0.8) tone = "#f59e0b";
+        const formattedName = formatCategoryName(catName(b.categoryId));
         return {
           ...b,
-          name: catName(b.categoryId),
+          name: formattedName,
           spent,
           ratio,
           tone,
@@ -391,19 +435,43 @@ export default function DashboardPage() {
     ];
   }, [monthlyStats]);
 
+  function openBudgetModal(preset = {}) {
+    setBudgetForm({
+      id: preset.id || "",
+      categoryId: preset.categoryId || "",
+      limitAmount: preset.limitAmount != null ? String(preset.limitAmount) : "",
+      monthKey: preset.monthKey || monthKey,
+    });
+    setBudgetModalOpen(true);
+  }
+
+  function closeBudgetModal() {
+    setBudgetModalOpen(false);
+    setBudgetForm({ id: "", categoryId: "", limitAmount: "", monthKey: "" });
+  }
+
   function handleSaveBudget(e) {
     e.preventDefault();
     if (!budgetForm.categoryId || !budgetForm.limitAmount) return;
     const payload = saveBudget({
+      id: budgetForm.id,
       categoryId: budgetForm.categoryId,
       limitAmount: Number(budgetForm.limitAmount),
       period: "monthly",
-      monthKey,
+      monthKey: budgetForm.monthKey || monthKey,
     });
     setBudgets(getBudgets());
-    setBudgetForm({ categoryId: "", limitAmount: "" });
+    setBudgetForm({ id: "", categoryId: "", limitAmount: "", monthKey: "" });
     setBudgetModalOpen(false);
     return payload;
+  }
+
+  function handleDeleteBudget(id) {
+    if (!id) return;
+    const confirmed = window.confirm("Bạn có chắc muốn xóa ngân sách này?");
+    if (!confirmed) return;
+    removeBudget(id);
+    setBudgets(getBudgets());
   }
 
   function renderTxnIcon(t) {
@@ -650,6 +718,20 @@ export default function DashboardPage() {
                 value={quickForm.amount}
                 onChange={(e) => setQuickForm({ ...quickForm, amount: e.target.value })}
               />
+              <div style={styles.formRow}>
+                <InputField
+                  type="date"
+                  style={{ minWidth: 180, flex: 1 }}
+                  value={quickForm.date}
+                  onChange={(e) => setQuickForm({ ...quickForm, date: e.target.value })}
+                />
+                <InputField
+                  type="time"
+                  style={{ minWidth: 140, flex: 1 }}
+                  value={quickForm.time}
+                  onChange={(e) => setQuickForm({ ...quickForm, time: e.target.value })}
+                />
+              </div>
               {quickError && <p style={{ color: "#fca5a5", fontSize: 13 }}>{quickError}</p>}
               <Button type="submit" fullWidth>
                 Thêm ngay
@@ -661,7 +743,7 @@ export default function DashboardPage() {
           <Card animate custom={3} title="Ngân sách theo danh mục" style={{ ...styles.card, ...styles.wideCard }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ color: "var(--text-muted)", fontSize: 13 }}>Theo dõi chi tiêu trên hạn mức</span>
-              <Button onClick={() => setBudgetModalOpen(true)} style={{ padding: "8px 10px", fontSize: 13 }}>
+              <Button onClick={() => openBudgetModal()} style={{ padding: "8px 10px", fontSize: 13 }}>
                 Đặt ngân sách
               </Button>
             </div>
@@ -675,13 +757,19 @@ export default function DashboardPage() {
                   <div key={b.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>{b.name}</div>
-                      <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>
-                        {formatCurrency(b.spent)} / {formatCurrency(b.limitAmount)}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>
+                          {formatCurrency(b.spent)} / {formatCurrency(b.limitAmount)}
+                        </div>
+                        <button style={styles.textBtn} onClick={() => openBudgetModal(b)}>Sửa</button>
+                        <button style={{ ...styles.textBtn, color: "#f87171" }} onClick={() => handleDeleteBudget(b.id)}>Xóa</button>
                       </div>
                     </div>
-                    <div style={styles.progressBarOuter}>
-                      <div style={{ ...styles.progressBarInner, width: `${Math.min(b.ratio * 100, 200)}%`, background: b.tone }} />
-                      <span style={styles.progressLabel}>{(b.ratio * 100).toFixed(0)}%</span>
+                    <div style={styles.progressRow}>
+                      <div style={styles.progressBarOuter}>
+                        <div style={{ ...styles.progressBarInner, width: `${Math.min(b.ratio * 100, 200)}%`, background: b.tone }} />
+                      </div>
+                      <span style={styles.progressPercent}>{(b.ratio * 100).toFixed(0)}%</span>
                     </div>
                     {b.over && <Badge tone="danger">Vượt mức</Badge>}
                   </div>
@@ -690,49 +778,53 @@ export default function DashboardPage() {
             )}
           </Card>
 
-          <Card animate custom={4} title="Giao dịch gần đây" style={{ ...styles.card, ...styles.wideCard }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
-              {recent.map((t) => {
-                const isIncome = t.type === "income";
-                return (
-                  <div key={t._id} style={styles.transactionRow}>
-                    <div style={styles.iconBox}>
-                      {renderTxnIcon(t)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>
-                          {t.category?.name || "Uncategorized"}
+          <div style={isNarrow ? undefined : { gridColumn: "1 / -1" }}>
+            <Card animate custom={4} title="Giao dịch gần đây" style={{ ...styles.card, ...styles.wideCard }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
+                {recent.map((t) => {
+                  const isIncome = t.type === "income";
+                  return (
+                    <div key={t._id} style={styles.transactionRow}>
+                      <div style={styles.iconBox}>
+                        {renderTxnIcon(t)}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>
+                            {t.category?.name || "Uncategorized"}
+                          </div>
+                          <span style={styles.categoryChip}>{t.category?.name || "Chưa phân loại"}</span>
                         </div>
-                        <span style={styles.categoryChip}>{t.category?.name || "Chưa phân loại"}</span>
+                        <div style={{ fontSize: 12, color: styles.lead.color }}>
+                          {new Date(t.date).toLocaleDateString()} • {t.note}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: styles.lead.color }}>
-                        {new Date(t.date).toLocaleDateString()} • {t.note}
+                      <div style={{ ...styles.amountWrap, color: isIncome ? "#4ade80" : "#f87171" }}>
+                        <Icon name={isIncome ? "arrowUpRight" : "arrowDown"} tone={isIncome ? "green" : "red"} size={16} background={false} />
+                        {isIncome ? "+" : "-"}${t.amount.toLocaleString()}
                       </div>
                     </div>
-                    <div style={{ ...styles.amountWrap, color: isIncome ? "#4ade80" : "#f87171" }}>
-                      <Icon name={isIncome ? "arrowUpRight" : "arrowDown"} tone={isIncome ? "green" : "red"} size={16} background={false} />
-                      {isIncome ? "+" : "-"}${t.amount.toLocaleString()}
-                    </div>
-                  </div>
-                );
-              })}
-              {recent.length === 0 && renderEmptyState("Chưa có giao dịch gần đây")}
-            </div>
-          </Card>
+                  );
+                })}
+                {recent.length === 0 && renderEmptyState("Chưa có giao dịch gần đây")}
+              </div>
+            </Card>
+          </div>
         </div>
         </>
       )}
       {budgetModalOpen && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ margin: 0, color: "var(--text-strong)" }}>Đặt ngân sách</h3>
-              <button style={styles.modalClose} onClick={() => setBudgetModalOpen(false)}>
-                <Icon name="close" tone="slate" size={16} background={false} />
-              </button>
-            </div>
-            <form onSubmit={handleSaveBudget} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={styles.modal}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h3 style={{ margin: 0, color: "var(--text-strong)" }}>
+            {budgetForm.id ? "Chỉnh sửa ngân sách" : "Đặt ngân sách"}
+          </h3>
+          <button style={styles.modalClose} onClick={closeBudgetModal}>
+            <Icon name="close" tone="slate" size={16} background={false} />
+          </button>
+        </div>
+        <form onSubmit={handleSaveBudget} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <select
                 style={styles.select}
                 value={budgetForm.categoryId}
@@ -767,6 +859,11 @@ const styles = {
     gap: 18,
     maxWidth: 1180,
     margin: "0 auto",
+    padding: "4px 6px 12px",
+    background:
+      "radial-gradient(circle at 18% 12%, rgba(59,130,246,0.08), transparent 32%), radial-gradient(circle at 88% 8%, rgba(236,72,153,0.06), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0))",
+    backgroundColor: "rgba(12,18,34,0.86)",
+    borderRadius: 18,
   },
   pageHead: {
     display: "flex",
@@ -924,7 +1021,7 @@ const styles = {
   progressBarOuter: {
     position: "relative",
     width: "100%",
-    height: 12,
+    height: 16,
     background: "rgba(255,255,255,0.06)",
     borderRadius: 999,
     overflow: "hidden",
@@ -938,14 +1035,8 @@ const styles = {
     borderRadius: 999,
     transition: "width 0.3s ease",
   },
-  progressLabel: {
-    position: "absolute",
-    right: 8,
-    top: -18,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.75)",
-    fontWeight: 700,
-  },
+  progressRow: { display: "flex", alignItems: "center", gap: 10 },
+  progressPercent: { minWidth: 42, textAlign: "right", fontSize: 12, color: "var(--text-strong)", fontWeight: 700 },
   modalOverlay: {
     position: "fixed",
     inset: 0,
@@ -969,6 +1060,16 @@ const styles = {
     background: "transparent",
     color: "var(--text-muted)",
     cursor: "pointer",
+  },
+  textBtn: {
+    border: "none",
+    background: "transparent",
+    color: "var(--text-muted)",
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: 12,
+    padding: "4px 6px",
+    borderRadius: 8,
   },
   emptyBox: {
     display: "flex",
