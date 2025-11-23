@@ -22,7 +22,7 @@ type ParseResult =
 
 const numberRegex = /(\d+(?:[\.,]\d+)?)(k|ngan|ngàn|ngàn đồng|tr|trieu|triệu)?/i;
 
-function parseAmount(raw: string): number | null {
+export function parseAmount(raw: string): number | null {
   const match = raw.match(numberRegex);
   if (!match) return null;
   const [, numStr, unitRaw] = match;

@@ -1,10 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { detectIntent } from "../bot/intentEngine";
-import { parseNaturalInput } from "../bot/parsers";
+import { parseNaturalInput, parseAmount } from "../bot/parsers";
 
 function formatCurrency(amount) {
   return amount.toLocaleString("vi-VN") + "đ";
 }
+
+function guessTransactionType(text) {
+  const intent = detectIntent(text).name;
+  if (intent === "add_income") return "income";
+  if (intent === "add_expense") return "expense";
+  const lower = text.toLowerCase();
+  if (lower.includes("thu")) return "income";
+  if (lower.includes("chi") || lower.includes("mua")) return "expense";
+  return null;
+}
+
+const initialDraftState = {
+  type: null,
+  amount: null,
+  categoryName: null,
+  note: "",
+  originalText: "",
+};
 
 const quickSuggestions = [
   "Thêm khoản chi mới",
@@ -89,6 +107,9 @@ export default function ChatbotWidget() {
   const [input, setInput] = useState("");
   const [showCommands, setShowCommands] = useState(false);
   const [, setDrafts] = useState([]);
+  const [lastIntent, setLastIntent] = useState(null);
+  const [draftStep, setDraftStep] = useState(null);
+  const [draftTransactionPartial, setDraftTransactionPartial] = useState(initialDraftState);
   const [messages, setMessages] = useState([
     { from: "bot", text: "Xin chào! Tôi là FIntrAI. Bạn có thể hỏi về giao dịch, danh mục, báo cáo hoặc bảo mật." },
   ]);
@@ -110,6 +131,115 @@ export default function ChatbotWidget() {
   }, []);
 
   const isLayerVisible = open || isAnimatingClose;
+
+  function updateTypingMessage(typingId, payload) {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === typingId ? { from: "bot", id: typingId, ...payload } : m))
+    );
+  }
+
+  function buildDraftFromPartial(partial, incomingText) {
+    if (!partial.type || !partial.amount) return null;
+    return {
+      kind: "transaction",
+      draft: {
+        type: partial.type,
+        amount: partial.amount,
+        note: partial.note?.trim() || "Không ghi chú",
+        categoryName: partial.categoryName || undefined,
+        date: new Date(),
+        originalText: partial.originalText || incomingText,
+      },
+    };
+  }
+
+  function continueDraftFlow(text, typingId) {
+    if (!draftStep) return false;
+
+    if (draftStep === "need_type") {
+      const type = guessTransactionType(text);
+      if (!type) {
+        updateTypingMessage(typingId, { text: "Bạn muốn ghi giao dịch Chi hay Thu?" });
+        setBotStatus("idle");
+        return true;
+      }
+      setDraftTransactionPartial((prev) => ({
+        ...prev,
+        type,
+        originalText: prev.originalText || text,
+      }));
+      setLastIntent(type);
+      setDraftStep("need_amount");
+      updateTypingMessage(typingId, {
+        text: type === "income" ? "Bạn muốn thu nhập bao nhiêu?" : "Bạn muốn chi tiêu bao nhiêu?",
+      });
+      setBotStatus("idle");
+      return true;
+    }
+
+    if (draftStep === "need_amount") {
+      const amount = parseAmount(text);
+      if (amount === null) {
+        updateTypingMessage(typingId, { text: "Mình chưa rõ số tiền, bạn nhập lại giúp mình nhé (vd: 120k)." });
+        setBotStatus("confused");
+        return true;
+      }
+      const noteGuess = text.replace(/(\d+(?:[.,]\d+)?(k|ngan|ngàn|tr|trieu|triệu)?)/i, "").trim();
+      setDraftTransactionPartial((prev) => ({
+        ...prev,
+        amount,
+        note: prev.note || noteGuess,
+        originalText: prev.originalText || text,
+      }));
+      setDraftStep("need_category");
+      updateTypingMessage(typingId, { text: "Danh mục nào? (vd: food / shopping / transport / cafe...)" });
+      setBotStatus("idle");
+      return true;
+    }
+
+    if (draftStep === "need_category") {
+      const cat = text.trim();
+      if (!cat) {
+        updateTypingMessage(typingId, { text: "Danh mục nào? Bạn có thể gõ tên danh mục." });
+        setBotStatus("confused");
+        return true;
+      }
+      setDraftTransactionPartial((prev) => ({
+        ...prev,
+        categoryName: cat,
+        originalText: prev.originalText || text,
+      }));
+      setDraftStep("need_note");
+      updateTypingMessage(typingId, { text: "Ghi chú gì cho giao dịch này? (vd: ăn trưa, mua cafe...)" });
+      setBotStatus("idle");
+      return true;
+    }
+
+    if (draftStep === "need_note") {
+      const note = text.trim() || draftTransactionPartial.note || "Không ghi chú";
+      const finalPartial = {
+        ...draftTransactionPartial,
+        note,
+        originalText: draftTransactionPartial.originalText || text,
+      };
+      const draftData = buildDraftFromPartial(finalPartial, text);
+      setDraftStep(null);
+      setDraftTransactionPartial(initialDraftState);
+      if (draftData) {
+        setDrafts((prev) => [...prev, { id: typingId, data: draftData }]);
+        const confirmText = `Bạn muốn thêm ${
+          draftData.draft.type === "expense" ? "CHI TIÊU" : "THU NHẬP"
+        } ${formatCurrency(draftData.draft.amount)} cho "${draftData.draft.note}"${
+          draftData.draft.categoryName ? ` (danh mục ${draftData.draft.categoryName})` : ""
+        } đúng không?`;
+        updateTypingMessage(typingId, { text: confirmText, draft: draftData });
+        setBotStatus("idle");
+        return true;
+      }
+    }
+
+    return false;
+  }
 
   function handleOpen() {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -139,8 +269,18 @@ export default function ChatbotWidget() {
     setShowCommands(false);
 
     const timer = setTimeout(() => {
-      const parsed = parseNaturalInput(content.trim());
+      const trimmed = content.trim();
+
+      if (draftStep) {
+        const handled = continueDraftFlow(trimmed, typingId);
+        if (handled) return;
+      }
+
+      const parsed = parseNaturalInput(trimmed);
       if (parsed) {
+        setDraftStep(null);
+        setDraftTransactionPartial(initialDraftState);
+        setLastIntent(parsed.kind);
         const confirmText =
           parsed.kind === "transaction"
             ? `Bạn muốn thêm ${parsed.draft.type === "expense" ? "CHI TIÊU" : "THU NHẬP"} ${formatCurrency(
@@ -160,7 +300,32 @@ export default function ChatbotWidget() {
         return;
       }
 
-      const botReply = buildBotReply(content.trim());
+      const intent = detectIntent(trimmed).name;
+      const normalized = trimmed.toLowerCase();
+      const isTransactionStart = normalized.includes("giao dich") || normalized.includes("giao dịch") || normalized.includes("tạo giao dịch");
+
+      if (intent === "add_expense" || intent === "add_income") {
+        const type = intent === "add_income" ? "income" : "expense";
+        setDraftTransactionPartial({ ...initialDraftState, type, originalText: trimmed });
+        setDraftStep("need_amount");
+        setLastIntent(intent);
+        updateTypingMessage(typingId, {
+          text: type === "income" ? "Bạn muốn thu nhập bao nhiêu?" : "Bạn muốn chi tiêu bao nhiêu?",
+        });
+        setBotStatus("idle");
+        return;
+      }
+
+      if (isTransactionStart) {
+        setDraftTransactionPartial({ ...initialDraftState, originalText: trimmed });
+        setDraftStep("need_type");
+        setLastIntent("transaction");
+        updateTypingMessage(typingId, { text: "Bạn muốn ghi giao dịch Chi hay Thu?" });
+        setBotStatus("idle");
+        return;
+      }
+
+      const botReply = buildBotReply(trimmed);
       setMessages((prev) =>
         prev.map((m) =>
           m.id === typingId ? { from: "bot", text: botReply.text, chips: botReply.chips, id: typingId } : m
@@ -270,6 +435,8 @@ export default function ChatbotWidget() {
                         style={styles.secondaryBtn}
                         onClick={() => {
                           setDrafts((prev) => prev.filter((d) => d.id !== m.id));
+                          setDraftStep(null);
+                          setDraftTransactionPartial(initialDraftState);
                           if (m.draft?.draft?.originalText) setInput(m.draft.draft.originalText);
                           setShowCommands(false);
                         }}
@@ -280,6 +447,8 @@ export default function ChatbotWidget() {
                         style={styles.primaryBtn}
                         onClick={() => {
                           setDrafts((prev) => prev.filter((d) => d.id !== m.id));
+                          setDraftStep(null);
+                          setDraftTransactionPartial(initialDraftState);
                           setMessages((prev) => [
                             ...prev,
                             { from: "bot", text: "Đã lưu bản nháp. Bạn có thể mở form chi tiết để hoàn tất." },
