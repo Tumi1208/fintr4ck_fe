@@ -1,44 +1,56 @@
 import { useEffect, useRef, useState } from "react";
-
-const faqPairs = [
-  {
-    keywords: ["bắt đầu", "đăng ký", "signup", "register"],
-    answer:
-      "Bạn có thể đăng ký miễn phí, sau đó vào Dashboard để nhập vài giao dịch đầu tiên. Bấm “Đăng ký” ở góc phải trên trang chủ.",
-  },
-  {
-    keywords: ["giao dịch", "transaction", "thêm chi", "thêm thu"],
-    answer:
-      "Vào mục Transactions, chọn loại Thu/Chi, danh mục, số tiền và ghi chú. Bạn cũng có thể dùng nút Quick add trên Dashboard.",
-  },
-  {
-    keywords: ["danh mục", "category", "biểu tượng"],
-    answer: "Mục Categories cho phép tạo danh mục thu/chi với icon. Nhấn “Thêm danh mục”, chọn loại và lưu.",
-  },
-  {
-    keywords: ["báo cáo", "report", "chart", "biểu đồ"],
-    answer:
-      "Biểu đồ breakdown chi tiêu nằm trên Dashboard. Hệ thống tự tổng hợp theo danh mục và thời gian giao dịch.",
-  },
-  {
-    keywords: ["mẫu", "template"],
-    answer:
-      "Trang Templates cung cấp bộ danh mục gợi ý (sinh viên, đi làm, freelancer). Chọn gói và bấm “Áp dụng gói”.",
-  },
-  {
-    keywords: ["bảo mật", "đổi mật khẩu", "password"],
-    answer:
-      "Vào Settings > Bảo mật để đổi mật khẩu. Nhập mật khẩu hiện tại, mật khẩu mới và lưu lại.",
-  },
-];
+import { detectIntent } from "../bot/intentEngine";
 
 const quickSuggestions = [
-  "Làm thế nào để thêm giao dịch?",
-  "Tôi có thể đổi mật khẩu ở đâu?",
-  "Cách thêm danh mục chi tiêu?",
-  "Dashboard hiển thị những gì?",
-  "Có gói danh mục mẫu không?",
+  "Thêm khoản chi mới",
+  "Mình muốn ghi nhận thu nhập",
+  "Xem báo cáo chi tiêu tháng này",
+  "Tạo danh mục mới",
+  "Tham gia thử thách tiết kiệm",
 ];
+
+const fallbackChips = ["Giao dịch", "Danh mục", "Báo cáo", "Thử thách"];
+
+function buildBotReply(text) {
+  const intent = detectIntent(text).name;
+
+  switch (intent) {
+    case "add_expense":
+      return {
+        text:
+          "Để thêm khoản chi: vào Transactions, chọn loại Chi, nhập số tiền, danh mục và ghi chú rồi lưu. Bạn cũng có thể bấm Quick add ngay trên Dashboard.",
+      };
+    case "add_income":
+      return {
+        text: "Bạn mở Transactions, chuyển sang tab Thu, nhập số tiền, danh mục thu và lưu để ghi nhận thu nhập mới.",
+      };
+    case "report":
+      return {
+        text:
+          "Báo cáo nằm ở Dashboard/Reports. Bạn có thể xem biểu đồ breakdown, lọc theo thời gian và danh mục để theo dõi xu hướng chi tiêu.",
+      };
+    case "create_category":
+      return {
+        text:
+          "Vào mục Categories, bấm “Thêm danh mục”, chọn loại (Thu/Chi), đặt tên và icon rồi lưu. Danh mục mới sẽ xuất hiện khi thêm giao dịch.",
+      };
+    case "join_challenge":
+      return {
+        text:
+          "Bạn mở tab Challenges, chọn thử thách muốn tham gia và bấm Join. Hệ thống sẽ theo dõi tiến độ và nhắc bạn qua bảng điều khiển.",
+      };
+    case "help":
+      return {
+        text:
+          "Mình có thể hỗ trợ cách thêm giao dịch, tạo danh mục, xem báo cáo hoặc tham gia thử thách. Hỏi mình bất cứ lúc nào nhé!",
+      };
+    default:
+      return {
+        text: "Mình chưa hiểu rõ yêu cầu. Bạn có thể chọn nhanh một trong các chủ đề dưới đây để tiếp tục nhé:",
+        chips: fallbackChips,
+      };
+  }
+}
 
 export default function ChatbotWidget() {
   const [open, setOpen] = useState(false);
@@ -54,18 +66,11 @@ export default function ChatbotWidget() {
     }
   }, [messages, open]);
 
-  function pickAnswer(text) {
-    const lower = text.toLowerCase();
-    for (const pair of faqPairs) {
-      if (pair.keywords.some((k) => lower.includes(k))) return pair.answer;
-    }
-    return "Tôi chưa có thông tin chi tiết cho câu hỏi này. Bạn có thể hỏi về: giao dịch, danh mục, báo cáo, template, bảo mật.";
-  }
-
   function sendMessage(content) {
     if (!content.trim()) return;
     const userMsg = { from: "user", text: content.trim() };
-    const botMsg = { from: "bot", text: pickAnswer(content.trim()) };
+    const botReply = buildBotReply(content.trim());
+    const botMsg = { from: "bot", text: botReply.text, chips: botReply.chips };
     setMessages((prev) => [...prev, userMsg, botMsg]);
     setInput("");
   }
@@ -110,7 +115,16 @@ export default function ChatbotWidget() {
                   border: m.from === "user" ? "1px solid rgba(99,102,241,0.35)" : "1px solid rgba(148,163,184,0.12)",
                 }}
               >
-                {m.text}
+                <div>{m.text}</div>
+                {m.chips?.length ? (
+                  <div style={styles.chipsRow}>
+                    {m.chips.map((chip) => (
+                      <button key={chip} style={styles.chip} onClick={() => sendMessage(chip)}>
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -214,6 +228,21 @@ const styles = {
     fontSize: 13,
     lineHeight: 1.4,
     maxWidth: "90%",
+  },
+  chipsRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  chip: {
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "rgba(226,232,240,0.06)",
+    borderRadius: 999,
+    padding: "6px 10px",
+    color: "#E2E8F0",
+    fontSize: 12,
+    cursor: "pointer",
   },
   inputRow: {
     display: "flex",
