@@ -17,6 +17,7 @@ import { useDialog } from "../hooks/useDialog";
 import { apiGetTransactions } from "../api/transactions";
 
 const DISPLAY_NAME_KEY = "fintr4ck_displayName";
+const AVATAR_URL_KEY = "fintr4ck_avatarUrl";
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
@@ -24,6 +25,8 @@ export default function SettingsPage() {
   // Profile
   const [name, setName] = useState("");
   const [baseDisplayName, setBaseDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [baseAvatarUrl, setBaseAvatarUrl] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
   const [profileMsgVisible, setProfileMsgVisible] = useState(false);
@@ -53,17 +56,22 @@ export default function SettingsPage() {
 
   const navigate = useNavigate();
   const resolvedBaseName = (user?.displayName || user?.name || baseDisplayName || "").trim();
-  const isDirty = name.trim() !== resolvedBaseName;
+  const resolvedBaseAvatar = (user?.avatarUrl || baseAvatarUrl || "").trim();
+  const isDirty = name.trim() !== resolvedBaseName || avatarUrl.trim() !== resolvedBaseAvatar;
 
   useEffect(() => {
     async function init() {
       try {
         const data = await apiGetMe();
         const stored = safeGetDisplayName();
+        const storedAvatar = safeGetAvatarUrl();
         const resolvedName = data.user?.displayName || data.user?.name || stored || "";
+        const resolvedAvatar = data.user?.avatarUrl || storedAvatar || "";
         setUser(data.user);
         setName(resolvedName);
         setBaseDisplayName(resolvedName);
+        setAvatarUrl(resolvedAvatar);
+        setBaseAvatarUrl(resolvedAvatar);
       } catch (err) {
         console.error(err);
       }
@@ -81,15 +89,19 @@ export default function SettingsPage() {
     try {
       setSavingProfile(true);
       setProfileMsg("");
-      const payload = { name, displayName: name };
+      const payload = { name, displayName: name, avatarUrl: avatarUrl || undefined };
       const data = await apiUpdateProfile(payload);
       const updatedUser = data.user || {};
       const resolvedName = updatedUser.displayName || updatedUser.name || name;
-      const normalizedUser = { ...updatedUser, name: resolvedName, displayName: resolvedName };
+      const resolvedAvatar = updatedUser.avatarUrl || avatarUrl;
+      const normalizedUser = { ...updatedUser, name: resolvedName, displayName: resolvedName, avatarUrl: resolvedAvatar };
       setUser(normalizedUser);
       setName(resolvedName);
+      setAvatarUrl(resolvedAvatar || "");
       setBaseDisplayName(resolvedName);
+      setBaseAvatarUrl(resolvedAvatar || "");
       safeSetDisplayName(resolvedName);
+      safeSetAvatarUrl(resolvedAvatar || "");
       setProfileMsg("Đã lưu thay đổi");
       setProfileMsgVisible(true);
       clearTimeout(profileFadeTimerRef.current);
