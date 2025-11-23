@@ -73,6 +73,18 @@ const howSteps = [
   { title: "FintrAI gợi ý tối ưu", desc: "Đề xuất cắt giảm phí, tối ưu dòng tiền và thói quen chi", icon: "✨" },
 ];
 
+const beforeList = [
+  "Ghi chép rời rạc, thiếu thống nhất danh mục",
+  "Không rõ tiền đi đâu, cảnh báo vượt ngân sách trễ",
+  "Không có gợi ý hành động, dễ bỏ cuộc",
+];
+
+const afterList = [
+  "Giao dịch chuẩn hóa, tự phân loại & nguồn tiền",
+  "Ngân sách realtime, cảnh báo sớm trước khi lệch",
+  "FintrAI đề xuất cắt phí, tăng tiết kiệm rõ ràng",
+];
+
 const stays = [
   { title: "Quỹ khẩn cấp", price: "Đã đạt 35.000.000đ", rating: "Tiến độ 70%", tag: "On-track", image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=900&q=80" },
   { title: "Trả nợ thẻ tín dụng", price: "Còn 12.500.000đ", rating: "Tiến độ 40%", tag: "Cần đẩy nhanh", image: "https://images.unsplash.com/photo-1542728000-268c0f9bddc7?auto=format&fit=crop&w=900&q=80" },
@@ -242,8 +254,36 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section style={styles.compareSection}>
+          <h2 style={styles.sectionTitle}>Trước và sau khi dùng Fintr4ck</h2>
+          <div style={styles.compareGrid}>
+            <div style={styles.compareCol}>
+              <div style={styles.compareTitle}>Trước khi dùng</div>
+              <div style={styles.compareList}>
+                {beforeList.map((item) => (
+                  <div key={item} style={styles.compareItem}>
+                    <span style={styles.compareIcon}>⛔️</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ ...styles.compareCol, background: "rgba(14,165,233,0.06)", borderColor: "rgba(14,165,233,0.28)" }}>
+              <div style={styles.compareTitle}>Sau khi dùng</div>
+              <div style={styles.compareList}>
+                {afterList.map((item) => (
+                  <div key={item} style={styles.compareItem}>
+                    <span style={{ ...styles.compareIcon, background: "rgba(34,197,94,0.14)", color: "#4ade80", borderColor: "rgba(34,197,94,0.3)" }}>✓</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
     <section id="popular" style={styles.section}>
-          <h2 style={styles.sectionTitle}>Các danh mục được dùng nhiều</h2>
+      <h2 style={styles.sectionTitle}>Các danh mục được dùng nhiều</h2>
           <div style={styles.tabs}>
             {tabSections.map((tab, idx) => (
               <button
@@ -436,6 +476,49 @@ const styles = {
   },
   howTitle: { fontWeight: 800, fontSize: 16, marginBottom: 4 },
   howDesc: { color: palette.muted, fontSize: 14, lineHeight: 1.5 },
+  compareSection: {
+    background: palette.card,
+    borderRadius: 24,
+    border: `1px solid ${palette.border}`,
+    padding: 22,
+    boxShadow: palette.shadow,
+  },
+  compareGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 14,
+  },
+  compareCol: {
+    padding: 14,
+    borderRadius: 16,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.04)",
+    boxShadow: "0 10px 28px rgba(0,0,0,0.35)",
+    display: "grid",
+    gap: 10,
+  },
+  compareTitle: { fontWeight: 800, fontSize: 16 },
+  compareList: { display: "grid", gap: 8 },
+  compareItem: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    color: palette.text,
+    fontWeight: 600,
+    lineHeight: 1.45,
+  },
+  compareIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    display: "grid",
+    placeItems: "center",
+    fontSize: 14,
+    background: "rgba(239,68,68,0.12)",
+    color: "#f87171",
+    border: "1px solid rgba(239,68,68,0.28)",
+    flexShrink: 0,
+  },
   heroLeft: { display: "grid", gap: 14, position: "relative", zIndex: 1 },
   pill: {
     alignSelf: "flex-start",
