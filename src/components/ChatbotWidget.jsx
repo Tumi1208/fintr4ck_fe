@@ -5,6 +5,9 @@ import { parseNaturalInput, parseAmount } from "../bot/parsers";
 import { apiCreateTransaction } from "../api/transactions";
 import { apiCreateCategory } from "../api/categories";
 import { authApiHelpers } from "../api/auth";
+import { apiGetSummary, apiGetTransactions } from "../api/transactions";
+import { apiGetCategories } from "../api/categories";
+import { getBudgets } from "../utils/budgets";
 
 function formatCurrency(amount) {
   return amount.toLocaleString("vi-VN") + "đ";
@@ -129,6 +132,7 @@ export default function ChatbotWidget() {
   ]);
   const navigate = useNavigate();
   const location = useLocation();
+  const insightsFetchedRef = useRef(false);
   const listRef = useRef(null);
   const closeTimerRef = useRef(null);
   const typingTimersRef = useRef([]);
@@ -152,6 +156,85 @@ export default function ChatbotWidget() {
     setMessages((prev) =>
       prev.map((m) => (m.id === typingId ? { from: "bot", id: typingId, ...payload } : m))
     );
+  }
+
+  async function maybeSendInsights() {
+    if (insightsFetchedRef.current) return;
+    insightsFetchedRef.current = true;
+    try {
+      const [summary, cats, txs] = await Promise.all([
+        apiGetSummary().catch(() => null),
+        apiGetCategories().catch(() => []),
+        apiGetTransactions({ limit: 400 }).catch(() => []),
+      ]);
+
+      const categories = Array.isArray(cats) ? cats : cats?.categories || [];
+      const transactions = Array.isArray(txs) ? txs : txs?.transactions || [];
+
+      // Personal spend insight
+      const expenseByCat = new Map();
+      let totalExpense = 0;
+      transactions
+        .filter((t) => t.type === "expense")
+        .forEach((t) => {
+          const catName = t.category?.name || categories.find((c) => c._id === t.categoryId)?.name || "Khác";
+          expenseByCat.set(catName, (expenseByCat.get(catName) || 0) + (t.amount || 0));
+          totalExpense += t.amount || 0;
+        });
+      if (expenseByCat.size && totalExpense > 0) {
+        const top = Array.from(expenseByCat.entries()).sort((a, b) => b[1] - a[1])[0];
+        const pct = Math.round((top[1] / totalExpense) * 100);
+        sendBotMessage({
+          text: `Tháng này bạn chi ${top[0]} ${pct}%. Bạn muốn xem gợi ý giảm chi không?`,
+          actions: [
+            { label: `Xem giao dịch ${top[0]}`, type: "view_transactions" },
+            { label: "Gợi ý tiết kiệm", type: "saving_tip" },
+          ],
+        });
+      } else if (summary?.topCategory && summary?.expenseRatio) {
+        const pct = Math.round(summary.expenseRatio * 100);
+        sendBotMessage({
+          text: `Tháng này bạn chi ${summary.topCategory} ${pct}%. Bạn muốn xem gợi ý giảm chi không?`,
+          actions: [
+            { label: `Xem giao dịch ${summary.topCategory}`, type: "view_transactions" },
+            { label: "Gợi ý tiết kiệm", type: "saving_tip" },
+          ],
+        });
+      }
+
+      // Budget alerts
+      const budgets = getBudgets();
+      if (budgets.length) {
+        const spendByCatId = new Map();
+        transactions
+          .filter((t) => t.type === "expense")
+          .forEach((t) => {
+            const key = t.categoryId || t.category?._id || t.category?.name;
+            if (!key) return;
+            spendByCatId.set(key, (spendByCatId.get(key) || 0) + (t.amount || 0));
+          });
+        const firstOver = budgets
+          .map((b) => {
+            const spent = spendByCatId.get(b.categoryId) || 0;
+            const ratio = b.limitAmount ? spent / b.limitAmount : 0;
+            const catName = categories.find((c) => c._id === b.categoryId)?.name || b.categoryId;
+            return { ...b, spent, ratio, catName };
+          })
+          .find((b) => b.ratio >= 0.8);
+        if (firstOver) {
+          const pct = Math.round(firstOver.ratio * 100);
+          sendBotMessage({
+            text: `Danh mục ${firstOver.catName} đã dùng ${pct}% ngân sách.`,
+            actions: [
+              { label: "Đặt lại ngân sách", to: "/app" },
+              { label: "Xem giao dịch", type: "view_transactions" },
+            ],
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Cannot fetch insights", err);
+    }
   }
 
   function buildDraftFromPartial(partial, incomingText) {
@@ -286,6 +369,14 @@ export default function ChatbotWidget() {
     if (action.type === "join_challenge_prompt") {
       handleJoinChallengePrompt();
     }
+    if (action.type === "saving_tip") {
+      sendBotMessage({
+        text: "Gợi ý: đặt giới hạn cho danh mục Shopping, bật thông báo khi vượt 70% và thử thử thách no-spend 3 ngày.",
+      });
+    }
+    if (action.type === "view_transactions") {
+      navigate("/app/transactions");
+    }
   }
 
   function refreshAppData(preferredPath) {
@@ -296,6 +387,10 @@ export default function ChatbotWidget() {
     if (location.pathname.startsWith("/app")) {
       window.location.reload();
     }
+  }
+
+  function sendBotMessage(payload) {
+    setMessages((prev) => [...prev, { from: "bot", ...payload }]);
   }
 
   async function handleConfirmDraft(message) {
@@ -347,6 +442,7 @@ export default function ChatbotWidget() {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     setIsAnimatingClose(false);
     setOpen(true);
+    maybeSendInsights();
   }
 
   function handleClose() {
