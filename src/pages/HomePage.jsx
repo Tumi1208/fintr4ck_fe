@@ -239,7 +239,7 @@ export default function HomePage() {
             {tabSections[activeTab].columns.map((col, i) => (
               <div key={i} style={styles.cityCol}>
                 {col.map((city) => (
-                  <div key={city} style={styles.cityItem}>{city}</div>
+                  <div key={city} style={styles.cityItem} className="city-item">{city}</div>
                 ))}
               </div>
             ))}
@@ -475,9 +475,20 @@ const styles = {
     boxShadow: "0 12px 28px rgba(14,165,233,0.25)",
   },
   tabSubtitle: { marginBottom: 14, color: palette.muted, fontSize: 14 },
-  cityGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 },
-  cityCol: { display: "grid", gap: 8, color: palette.muted, padding: "8px 10px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: `1px solid ${palette.border}` },
-  cityItem: { fontSize: 14, fontWeight: 600, color: palette.text, padding: "8px 10px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: `1px solid ${palette.border}`, boxShadow: "0 10px 24px rgba(0,0,0,0.25)" },
+  cityGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, alignItems: "stretch" },
+  cityCol: { display: "grid", gap: 10, color: palette.muted, padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: `1px solid ${palette.border}`, height: "100%" },
+  cityItem: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: palette.text,
+    padding: "12px 12px",
+    lineHeight: 1.45,
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.04)",
+    border: `1px solid ${palette.border}`,
+    boxShadow: "0 10px 24px rgba(0,0,0,0.25)",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
+  },
   dealsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 },
   dealCard: {
     padding: 14,
@@ -587,6 +598,13 @@ const marqueeStyle = `
   0% { box-shadow: 0 0 0 0 rgba(124,58,237,0.28); opacity: 0.96; }
   50% { box-shadow: 0 0 20px 10px rgba(14,165,233,0.22); opacity: 1; }
   100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.18); opacity: 0.93; }
+}
+
+.city-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(124,58,237,0.55);
+  box-shadow: 0 12px 26px rgba(0,0,0,0.28);
+  background: rgba(255,255,255,0.06);
 }
 `;
 
