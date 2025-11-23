@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { authApiHelpers } from "../api/auth";
 import StreakBadge from "../components/StreakBadge";
 import PageTransition from "../components/PageTransition";
@@ -109,6 +109,7 @@ export default function MyChallengesPage() {
   const [leavingId, setLeavingId] = useState("");
   const [sortPreset, setSortPreset] = useState("progress");
   const [toasts, setToasts] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
   const loadDemoJoins = () => {
@@ -141,7 +142,7 @@ export default function MyChallengesPage() {
     }
   };
 
-  const mergeWithDemo = (apiItems = []) => {
+  const mergeWithDemo = useCallback((apiItems = []) => {
     const demoItems = loadDemoJoins();
     if (!demoItems.length) return apiItems;
     const existIds = new Set(apiItems.map((i) => i._id || i.challenge?._id));
@@ -150,9 +151,9 @@ export default function MyChallengesPage() {
       if (!existIds.has(d._id)) merged.push(d);
     });
     return merged;
-  };
+  }, []);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -168,11 +169,33 @@ export default function MyChallengesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [mergeWithDemo]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
+
+  useEffect(() => {
+    // Drop any selected ids that no longer exist after reloads.
+    setSelectedIds((prev) => prev.filter((id) => items.some((i) => i._id === id)));
+  }, [items]);
+
+  const activeNotChecked = items.filter((i) => i.status === "ACTIVE" && !computeCheckedInToday(i));
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+  };
+
+  const selectAllAvailable = () => {
+    setSelectedIds(activeNotChecked.map((i) => i._id));
+  };
+
+  const handleBulkCheckIn = async (ids) => {
+    for (const id of ids) {
+      // sequential to avoid overlapping dialogs
+      await handleCheckIn(id);
+    }
+  };
 
   async function handleCheckIn(id) {
     try {
@@ -293,6 +316,41 @@ export default function MyChallengesPage() {
           <p style={styles.lead}>Xem tiến độ, check-in và huỷ tham gia nếu cần.</p>
         </div>
         <div style={styles.headerActions}>
+          <div style={styles.bulkActions}>
+            <button
+              style={{
+                ...styles.bulkBtn,
+                ...(activeNotChecked.length === 0 ? styles.bulkBtnDisabled : {}),
+              }}
+              onClick={selectAllAvailable}
+              disabled={activeNotChecked.length === 0}
+              title={activeNotChecked.length === 0 ? "Không còn challenge nào để chọn" : "Chọn tất cả challenge chưa check-in hôm nay"}
+            >
+              Chọn tất cả
+            </button>
+            <button
+              style={{
+                ...styles.bulkBtn,
+                ...(selectedIds.length === 0 ? styles.bulkBtnDisabled : styles.bulkBtnPrimary),
+              }}
+              onClick={() => handleBulkCheckIn(selectedIds)}
+              disabled={selectedIds.length === 0}
+              title={selectedIds.length === 0 ? "Chọn challenge để check-in" : "Check-in các challenge đã chọn"}
+            >
+              Check-in đã chọn
+            </button>
+            <button
+              style={{
+                ...styles.bulkBtn,
+                ...(activeNotChecked.length === 0 ? styles.bulkBtnDisabled : styles.bulkBtnPrimary),
+              }}
+              onClick={() => handleBulkCheckIn(activeNotChecked.map((i) => i._id))}
+              disabled={activeNotChecked.length === 0}
+              title={activeNotChecked.length === 0 ? "Tất cả đã check-in" : "Check-in tất cả challenge còn lại"}
+            >
+              Check-in tất cả
+            </button>
+          </div>
           <div style={styles.sortBar}>
             <div style={styles.sortTitle}>Sắp xếp</div>
             <div style={styles.sortChips}>
@@ -333,6 +391,7 @@ export default function MyChallengesPage() {
         )}
         <div style={styles.tableWrapper}>
           <div style={styles.tableHead}>
+            <div style={styles.colSelect}>Chọn</div>
             <div style={styles.colWide}>Thử thách</div>
             <div style={styles.colStreak}>Chuỗi ngày</div>
             <div style={styles.colStatus}>Trạng thái</div>
@@ -349,14 +408,20 @@ export default function MyChallengesPage() {
             { key: "gold", label: "Gold Peak", percent: 75 },
             { key: "finish", label: "Hoàn thành", percent: 100 },
           ];
-          const reachedMilestone = milestones.reduce(
-            (curr, m) => (progress >= m.percent ? m : curr),
-            { key: "start", label: "Bắt đầu", percent: 0 },
-          );
           const tiers = [{ key: "start", label: "Bắt đầu", percent: 0 }, ...milestones];
           const checkedInToday = computeCheckedInToday(item);
           return (
             <div key={item._id} style={styles.tableRow}>
+              <div style={styles.colSelect}>
+                <input
+                  type="checkbox"
+                  aria-label="Chọn challenge"
+                  checked={selectedIds.includes(item._id)}
+                  onChange={() => toggleSelect(item._id)}
+                  disabled={item.status !== "ACTIVE" || checkedInToday}
+                  title={checkedInToday ? "Đã check-in hôm nay" : item.status !== "ACTIVE" ? "Chỉ chọn challenge đang diễn ra" : ""}
+                />
+              </div>
               <div style={styles.colWide}>
                 <div style={styles.titleRow}>
                   <div style={styles.cardTitle}>{item.challenge?.title || "Thử thách"}</div>
@@ -677,7 +742,7 @@ const styles = {
   },
   tableHead: {
     display: "grid",
-    gridTemplateColumns: "2fr 1.6fr 1fr 1.6fr",
+    gridTemplateColumns: "0.5fr 2fr 1.6fr 1fr 1.6fr",
     gap: 10,
     padding: "10px 12px",
     fontWeight: 700,
@@ -688,7 +753,7 @@ const styles = {
   },
   tableRow: {
     display: "grid",
-    gridTemplateColumns: "2fr 1.6fr 1fr 1.6fr",
+    gridTemplateColumns: "0.5fr 2fr 1.6fr 1fr 1.6fr",
     gap: 10,
     padding: "14px 12px",
     alignItems: "flex-start",
@@ -699,6 +764,7 @@ const styles = {
     minWidth: 760,
   },
   colWide: { display: "flex", flexDirection: "column", gap: 4 },
+  colSelect: { display: "flex", alignItems: "center", justifyContent: "center" },
   colStreak: { display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0 },
   colStatus: { display: "flex", justifyContent: "center", alignItems: "center" },
   colActions: { display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", justifyContent: "center" },
@@ -739,35 +805,45 @@ const styles = {
   },
   overviewLabel: { color: "var(--text-muted)", fontSize: 12, marginBottom: 2, fontWeight: 700 },
   overviewValue: { color: "var(--text-strong)", fontSize: 16, fontWeight: 800 },
-  headerActions: { display: "flex", alignItems: "flex-end", justifyContent: "flex-end" },
+  headerActions: { display: "flex", alignItems: "flex-end", justifyContent: "flex-end", gap: 12, flexWrap: "wrap" },
   sortBar: {
     display: "flex",
     flexDirection: "column",
-    gap: 6,
-    padding: "10px 12px",
-    borderRadius: 12,
-    background: "linear-gradient(135deg, rgba(12,15,28,0.9), rgba(24,31,56,0.9))",
-    border: "1px solid rgba(148,163,184,0.14)",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-  },
-  sortTitle: { color: "var(--text-muted)", fontSize: 12, fontWeight: 700, letterSpacing: 0.2 },
-  sortChips: { display: "flex", gap: 8, flexWrap: "wrap" },
-  sortChip: {
-    padding: "8px 12px",
-    borderRadius: 999,
+    gap: 10,
+    padding: "12px 16px",
+    borderRadius: 14,
+    background: "linear-gradient(145deg, rgba(18,25,43,0.9), rgba(26,36,63,0.9))",
     border: "1px solid rgba(148,163,184,0.18)",
-    background: "rgba(255,255,255,0.03)",
+    boxShadow: "0 16px 38px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.04)",
+    backdropFilter: "blur(6px)",
+  },
+  sortTitle: {
     color: "var(--text-muted)",
-    fontWeight: 700,
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  sortChips: { display: "flex", gap: 10, flexWrap: "wrap" },
+  sortChip: {
+    padding: "10px 14px",
+    borderRadius: 999,
+    border: "1px solid rgba(148,163,184,0.22)",
+    background: "rgba(255,255,255,0.02)",
+    color: "rgba(226,232,240,0.8)",
+    fontWeight: 800,
+    letterSpacing: 0.2,
     fontSize: 12,
     cursor: "pointer",
-    transition: "all 0.2s ease",
+    transition: "all 0.18s ease",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
   },
   sortChipActive: {
-    background: "linear-gradient(90deg, rgba(99,102,241,0.85), rgba(16,185,129,0.8))",
+    background: "linear-gradient(90deg, rgba(99,102,241,0.9), rgba(16,185,129,0.9))",
     color: "#0b1021",
-    border: "1px solid rgba(148,163,184,0.25)",
-    boxShadow: "0 8px 20px rgba(99,102,241,0.35)",
+    border: "1px solid rgba(148,163,184,0.3)",
+    boxShadow: "0 10px 24px rgba(99,102,241,0.35), 0 4px 12px rgba(0,0,0,0.35)",
+    transform: "translateY(-1px)",
   },
   toastStack: {
     position: "fixed",
@@ -786,5 +862,24 @@ const styles = {
     borderRadius: 12,
     fontWeight: 800,
     boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+  },
+  bulkActions: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" },
+  bulkBtn: {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(148,163,184,0.2)",
+    background: "rgba(255,255,255,0.05)",
+    color: "var(--text-strong)",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  bulkBtnPrimary: {
+    background: "linear-gradient(135deg, rgba(99,102,241,0.9), rgba(14,165,233,0.9))",
+    color: "#0b1021",
+    boxShadow: "0 10px 26px rgba(14,165,233,0.25)",
+  },
+  bulkBtnDisabled: {
+    opacity: 0.55,
+    cursor: "not-allowed",
   },
 };
