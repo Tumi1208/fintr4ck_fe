@@ -23,6 +23,7 @@ export default function SettingsPage() {
 
   // Profile
   const [name, setName] = useState("");
+  const [baseDisplayName, setBaseDisplayName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
   const [profileMsgVisible, setProfileMsgVisible] = useState(false);
@@ -51,6 +52,8 @@ export default function SettingsPage() {
   const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
 
   const navigate = useNavigate();
+  const resolvedBaseName = (user?.displayName || user?.name || baseDisplayName || "").trim();
+  const isDirty = name.trim() !== resolvedBaseName;
 
   useEffect(() => {
     async function init() {
@@ -60,6 +63,7 @@ export default function SettingsPage() {
         const resolvedName = data.user?.displayName || data.user?.name || stored || "";
         setUser(data.user);
         setName(resolvedName);
+        setBaseDisplayName(resolvedName);
       } catch (err) {
         console.error(err);
       }
@@ -84,6 +88,7 @@ export default function SettingsPage() {
       const normalizedUser = { ...updatedUser, name: resolvedName, displayName: resolvedName };
       setUser(normalizedUser);
       setName(resolvedName);
+      setBaseDisplayName(resolvedName);
       safeSetDisplayName(resolvedName);
       setProfileMsg("Đã lưu thay đổi");
       setProfileMsgVisible(true);
@@ -245,7 +250,15 @@ export default function SettingsPage() {
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Button onClick={handleProfileSave} disabled={savingProfile}>
+          <Button
+            onClick={handleProfileSave}
+            disabled={savingProfile || !isDirty}
+            title={!isDirty ? "Không có thay đổi để lưu" : ""}
+            style={{
+              opacity: savingProfile || !isDirty ? 0.6 : 1,
+              cursor: savingProfile || !isDirty ? "not-allowed" : "pointer",
+            }}
+          >
             {savingProfile ? "..." : "Lưu thay đổi"}
           </Button>
         </div>
