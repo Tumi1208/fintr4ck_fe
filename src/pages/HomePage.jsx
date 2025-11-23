@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PageTransition from "../components/PageTransition";
 
@@ -89,10 +89,42 @@ const footerLinks = [
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState(0);
+  const [netGrowth, setNetGrowth] = useState(0);
+  const [budgetUsage, setBudgetUsage] = useState(0);
+  const [chartReady, setChartReady] = useState(false);
   const cashflowSeries = [32, 40, 36, 48, 62, 58, 72, 68, 86, 94, 102, 96];
   const budgetSeries = [52, 48, 54, 60, 58, 66, 70, 68, 72, 76, 80, 78];
   const lastCash = cashflowSeries[cashflowSeries.length - 1];
   const lastBudget = budgetSeries[budgetSeries.length - 1];
+
+  useEffect(() => {
+    const netTarget = 12.4;
+    const budgetTarget = 62;
+    const duration = 1100;
+    let frameId;
+    const start = performance.now();
+
+    const tick = (now) => {
+      const rawProgress = Math.min((now - start) / duration, 1);
+      const eased = easeOutCubic(rawProgress);
+      if (rawProgress >= 1) {
+        setNetGrowth(netTarget);
+        setBudgetUsage(budgetTarget);
+        return;
+      }
+      setNetGrowth(Number((netTarget * eased).toFixed(2)));
+      setBudgetUsage(Math.round(budgetTarget * eased));
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setChartReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   return (
     <PageTransition style={styles.page}>
@@ -131,12 +163,12 @@ export default function HomePage() {
             <div style={styles.heroStats}>
               <div>
                 <div style={styles.cardLabel}>Dòng tiền ròng</div>
-                <div style={styles.cardValue}>+12,4%</div>
+                <div style={styles.cardValue}>+{formatNumber(netGrowth, 1)}%</div>
                 <div style={styles.cardHint}>vs tuần trước</div>
               </div>
               <div>
                 <div style={styles.cardLabel}>Tỷ lệ dùng ngân sách</div>
-                <div style={styles.cardValue}>62%</div>
+                <div style={styles.cardValue}>{formatNumber(budgetUsage, 0)}%</div>
                 <div style={styles.cardHint}>Cảnh báo ở 80%</div>
               </div>
             </div>
@@ -158,9 +190,9 @@ export default function HomePage() {
                     <line key={y} x1="14" x2="306" y1={y} y2={y} strokeDasharray="4 6" />
                   ))}
                 </g>
-                {renderArea(cashflowSeries, 320, 170, "cfArea")}
-                {renderLine(cashflowSeries, 320, 170, "cfLine", 3.5, true)}
-                {renderLine(budgetSeries, 320, 170, "rgba(34,193,195,0.85)", 2.4)}
+                {renderArea(cashflowSeries, 320, 170, "cfArea", true, chartReady)}
+                {renderLine(cashflowSeries, 320, 170, "cfLine", 3.5, true, true, chartReady, 0)}
+                {renderLine(budgetSeries, 320, 170, "rgba(34,193,195,0.85)", 2.4, false, true, chartReady, 160)}
               </svg>
               <div style={styles.chartMeta}>
                 <div style={styles.chartMetaRow}>
@@ -342,6 +374,8 @@ const styles = {
     color: "#c4b5fd",
     fontWeight: 700,
     fontSize: 12,
+    boxShadow: "0 0 0 0 rgba(124,58,237,0.28)",
+    animation: "glowPulse 2.7s ease-in-out infinite",
   },
   heroTitle: { fontSize: 36, margin: 0, lineHeight: 1.2 },
   heroDesc: { margin: 0, color: palette.muted, lineHeight: 1.6 },
@@ -531,7 +565,17 @@ const marqueeStyle = `
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes glowPulse {
+  0% { box-shadow: 0 0 0 0 rgba(124,58,237,0.28); opacity: 0.96; }
+  50% { box-shadow: 0 0 20px 10px rgba(14,165,233,0.22); opacity: 1; }
+  100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.18); opacity: 0.93; }
+}
 `;
+
+function formatNumber(value, decimals = 0) {
+  return value.toFixed(decimals).replace(".", ",");
+}
 
 function normalizeSeries(series, width, height) {
   const max = Math.max(...series);
@@ -545,9 +589,23 @@ function normalizeSeries(series, width, height) {
   });
 }
 
-function renderLine(series, width, height, stroke, strokeWidth = 2, glow = false) {
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function renderLine(series, width, height, stroke, strokeWidth = 2, glow = false, animate = false, ready = false, delay = 0) {
   const pts = normalizeSeries(series, width, height - 32); // top padding
   const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y + 18}`).join(" ");
+  const animationStyle = animate
+    ? {
+        pathLength: 1,
+        style: {
+          strokeDasharray: 1,
+          strokeDashoffset: ready ? 0 : 1,
+          transition: `stroke-dashoffset 1.2s ease-out ${delay}ms`,
+        },
+      }
+    : {};
   const glowPath = glow ? (
     <path
       d={d}
@@ -558,17 +616,26 @@ function renderLine(series, width, height, stroke, strokeWidth = 2, glow = false
       strokeLinejoin="round"
       strokeLinecap="round"
       filter="drop-shadow(0 0 12px rgba(14,165,233,0.45))"
+      {...animationStyle}
     />
   ) : null;
   return (
     <>
       {glowPath}
-      <path d={d} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
+      <path
+        d={d}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        {...animationStyle}
+      />
     </>
   );
 }
 
-function renderArea(series, width, height, fill) {
+function renderArea(series, width, height, fill, animate = false, ready = false) {
   const pts = normalizeSeries(series, width, height - 32);
   const d = [
     `M ${0} ${height}`,
@@ -576,5 +643,12 @@ function renderArea(series, width, height, fill) {
     `L ${width} ${height}`,
     "Z",
   ].join(" ");
-  return <path d={d} fill={`url(#${fill})`} stroke="none" />;
+  const style = animate
+    ? {
+        opacity: ready ? 1 : 0,
+        transform: ready ? "translateY(0)" : "translateY(12px)",
+        transition: "opacity 0.65s ease-out 0.15s, transform 0.9s ease-out 0.15s",
+      }
+    : undefined;
+  return <path d={d} fill={`url(#${fill})`} stroke="none" style={style} />;
 }
