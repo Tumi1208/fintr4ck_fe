@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { detectIntent } from "../bot/intentEngine";
+import { parseNaturalInput } from "../bot/parsers";
+
+function formatCurrency(amount) {
+  return amount.toLocaleString("vi-VN") + "đ";
+}
 
 const quickSuggestions = [
   "Thêm khoản chi mới",
@@ -83,6 +88,7 @@ export default function ChatbotWidget() {
   const [botStatus, setBotStatus] = useState("idle");
   const [input, setInput] = useState("");
   const [showCommands, setShowCommands] = useState(false);
+  const [, setDrafts] = useState([]);
   const [messages, setMessages] = useState([
     { from: "bot", text: "Xin chào! Tôi là FIntrAI. Bạn có thể hỏi về giao dịch, danh mục, báo cáo hoặc bảo mật." },
   ]);
@@ -133,6 +139,27 @@ export default function ChatbotWidget() {
     setShowCommands(false);
 
     const timer = setTimeout(() => {
+      const parsed = parseNaturalInput(content.trim());
+      if (parsed) {
+        const confirmText =
+          parsed.kind === "transaction"
+            ? `Bạn muốn thêm ${parsed.draft.type === "expense" ? "CHI TIÊU" : "THU NHẬP"} ${formatCurrency(
+                parsed.draft.amount
+              )} cho "${parsed.draft.note}" đúng không?`
+            : `Bạn muốn tạo danh mục "${parsed.draft.name}" chứ?`;
+
+        setDrafts((prev) => [...prev, { id: typingId, data: parsed }]);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === typingId
+              ? { from: "bot", text: confirmText, draft: parsed, id: typingId }
+              : m
+          )
+        );
+        setBotStatus("idle");
+        return;
+      }
+
       const botReply = buildBotReply(content.trim());
       setMessages((prev) =>
         prev.map((m) =>
@@ -233,6 +260,35 @@ export default function ChatbotWidget() {
                     <span style={{ ...styles.dot, animationDelay: "0ms" }} />
                     <span style={{ ...styles.dot, animationDelay: "120ms" }} />
                     <span style={{ ...styles.dot, animationDelay: "240ms" }} />
+                  </div>
+                ) : m.draft ? (
+                  <div style={styles.card}>
+                    <div style={styles.cardTitle}>Xác nhận</div>
+                    <div style={styles.cardText}>{m.text}</div>
+                    <div style={styles.cardActions}>
+                      <button
+                        style={styles.secondaryBtn}
+                        onClick={() => {
+                          setDrafts((prev) => prev.filter((d) => d.id !== m.id));
+                          if (m.draft?.draft?.originalText) setInput(m.draft.draft.originalText);
+                          setShowCommands(false);
+                        }}
+                      >
+                        Sửa lại
+                      </button>
+                      <button
+                        style={styles.primaryBtn}
+                        onClick={() => {
+                          setDrafts((prev) => prev.filter((d) => d.id !== m.id));
+                          setMessages((prev) => [
+                            ...prev,
+                            { from: "bot", text: "Đã lưu bản nháp. Bạn có thể mở form chi tiết để hoàn tất." },
+                          ]);
+                          }}
+                      >
+                        Xác nhận
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -454,6 +510,50 @@ const styles = {
     borderRadius: "50%",
     background: "rgba(226,232,240,0.9)",
     animation: "botBounce 1.2s infinite ease-in-out",
+  },
+  card: {
+    background: "rgba(226,232,240,0.05)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 12,
+    padding: 10,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  cardTitle: {
+    fontWeight: 700,
+    fontSize: 12,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+    color: "rgba(226,232,240,0.8)",
+  },
+  cardText: {
+    fontSize: 13,
+    lineHeight: 1.5,
+  },
+  cardActions: {
+    display: "flex",
+    gap: 8,
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+  },
+  primaryBtn: {
+    border: "none",
+    background: "rgba(99,102,241,0.9)",
+    color: "#0B1021",
+    padding: "8px 12px",
+    borderRadius: 10,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  secondaryBtn: {
+    border: "1px solid rgba(148,163,184,0.3)",
+    background: "rgba(226,232,240,0.08)",
+    color: "#E2E8F0",
+    padding: "8px 12px",
+    borderRadius: 10,
+    fontWeight: 600,
+    cursor: "pointer",
   },
   quickChipRow: {
     width: "100%",
