@@ -11,6 +11,24 @@ const quickSuggestions = [
 
 const fallbackChips = ["Giao dịch", "Danh mục", "Báo cáo", "Thử thách"];
 
+const quickReplyChips = [
+  "Thêm chi tiêu",
+  "Thêm thu nhập",
+  "Xem báo cáo tháng này",
+  "Tạo danh mục",
+  "Tham gia thử thách",
+  "Trợ giúp",
+];
+
+const commandPalette = [
+  { command: "/add-expense", text: "Thêm chi tiêu" },
+  { command: "/add-income", text: "Thêm thu nhập" },
+  { command: "/report-month", text: "Xem báo cáo tháng này" },
+  { command: "/create-category", text: "Tạo danh mục" },
+  { command: "/join-challenge", text: "Tham gia thử thách" },
+  { command: "/help", text: "Trợ giúp" },
+];
+
 function buildBotReply(text) {
   const intent = detectIntent(text).name;
 
@@ -64,6 +82,7 @@ export default function ChatbotWidget() {
   const [isAnimatingClose, setIsAnimatingClose] = useState(false);
   const [botStatus, setBotStatus] = useState("idle");
   const [input, setInput] = useState("");
+  const [showCommands, setShowCommands] = useState(false);
   const [messages, setMessages] = useState([
     { from: "bot", text: "Xin chào! Tôi là FIntrAI. Bạn có thể hỏi về giao dịch, danh mục, báo cáo hoặc bảo mật." },
   ]);
@@ -111,6 +130,7 @@ export default function ChatbotWidget() {
       { from: "bot", typing: true, id: typingId },
     ]);
     setInput("");
+    setShowCommands(false);
 
     const timer = setTimeout(() => {
       const botReply = buildBotReply(content.trim());
@@ -239,15 +259,58 @@ export default function ChatbotWidget() {
               sendMessage(input);
             }}
           >
-            <input
-              style={styles.input}
-              placeholder="Đặt câu hỏi của bạn..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-            />
-            <button type="submit" style={styles.sendBtn}>
-              Gửi
-            </button>
+            <div style={styles.quickChipRow}>
+              <div style={styles.quickChipScroll}>
+                {quickReplyChips.map((chip) => (
+                  <button
+                    key={chip}
+                    style={styles.quickChip}
+                    type="button"
+                    onClick={() => {
+                      setInput(chip);
+                      sendMessage(chip);
+                    }}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={styles.inputActionRow}>
+              <input
+                style={styles.input}
+                placeholder="Đặt câu hỏi của bạn..."
+                value={input}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setInput(value);
+                  setShowCommands(value.startsWith("/"));
+                }}
+              />
+              <button type="submit" style={styles.sendBtn}>
+                Gửi
+              </button>
+            </div>
+            {showCommands && (
+              <div style={styles.commandPalette}>
+                {commandPalette
+                  .filter((cmd) => cmd.command.includes(input.trim() || "/"))
+                  .map((cmd) => (
+                    <button
+                      key={cmd.command}
+                      type="button"
+                      style={styles.commandItem}
+                      onClick={() => {
+                        setInput(cmd.text);
+                        sendMessage(cmd.text);
+                      }}
+                    >
+                      <span style={styles.commandCode}>{cmd.command}</span>
+                      <span>{cmd.text}</span>
+                    </button>
+                  ))}
+              </div>
+            )}
           </form>
         </div>
       )}
@@ -392,6 +455,26 @@ const styles = {
     background: "rgba(226,232,240,0.9)",
     animation: "botBounce 1.2s infinite ease-in-out",
   },
+  quickChipRow: {
+    width: "100%",
+    overflow: "hidden",
+  },
+  quickChipScroll: {
+    display: "flex",
+    gap: 8,
+    overflowX: "auto",
+    padding: "0 2px 6px",
+  },
+  quickChip: {
+    border: "1px solid rgba(148,163,184,0.2)",
+    background: "rgba(226,232,240,0.08)",
+    color: "#E2E8F0",
+    padding: "6px 10px",
+    borderRadius: 999,
+    whiteSpace: "nowrap",
+    cursor: "pointer",
+    fontSize: 12,
+  },
   chipsRow: {
     display: "flex",
     flexWrap: "wrap",
@@ -412,9 +495,16 @@ const styles = {
     gap: 8,
     padding: "12px",
     borderTop: "1px solid rgba(148,163,184,0.12)",
+    position: "relative",
+    flexDirection: "column",
+  },
+  inputActionRow: {
+    display: "flex",
+    gap: 8,
+    alignItems: "center",
   },
   input: {
-    flex: 1,
+    width: "100%",
     padding: "10px 12px",
     borderRadius: 10,
     border: "1px solid rgba(148,163,184,0.2)",
@@ -430,5 +520,38 @@ const styles = {
     color: "#0B1021",
     fontWeight: 800,
     cursor: "pointer",
+    alignSelf: "stretch",
+  },
+  commandPalette: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 52,
+    background: "rgba(15,23,42,0.96)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: 10,
+    boxShadow: "0 20px 50px rgba(0,0,0,0.35)",
+    padding: 8,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    zIndex: 1001,
+  },
+  commandItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    border: "none",
+    background: "rgba(226,232,240,0.04)",
+    color: "#E2E8F0",
+    padding: "8px 10px",
+    borderRadius: 8,
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  commandCode: {
+    fontFamily: "monospace",
+    fontSize: 12,
+    color: "rgba(226,232,240,0.8)",
   },
 };
