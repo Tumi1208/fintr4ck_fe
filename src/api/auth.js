@@ -1,5 +1,5 @@
 // src/api/auth.js
-const API_BASE = import.meta.env.VITE_API_BASE || "https://api.fintr4ck.click/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api/v1";
 console.log("API_BASE =", API_BASE);
 
 function getAuthHeaders() {
