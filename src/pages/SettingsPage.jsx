@@ -43,6 +43,9 @@ export default function SettingsPage() {
   const [pwdStrength, setPwdStrength] = useState("weak");
   const [exportMsg, setExportMsg] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
+  const [exportRange, setExportRange] = useState("all");
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
   const profileMsgTimerRef = useRef(null);
@@ -74,6 +77,15 @@ export default function SettingsPage() {
         setBaseAvatarUrl(resolvedAvatar);
       } catch (err) {
         console.error(err);
+      }
+      try {
+        const res = await apiGetTransactions();
+        const list = Array.isArray(res) ? res : res.transactions || [];
+        setTransactions(list);
+      } catch (err) {
+        console.error("Không thể tải giao dịch để xuất CSV:", err);
+      } finally {
+        setTransactionsLoading(false);
       }
     }
     init();
@@ -123,8 +135,7 @@ export default function SettingsPage() {
     try {
       setExportLoading(true);
       setExportMsg("");
-      const data = await apiGetTransactions();
-      const list = Array.isArray(data) ? data : data.transactions || [];
+      const list = filterTransactionsByRange(transactions, exportRange);
       const csv = buildTransactionsCsv(list);
       triggerCsvDownload(csv, "fintr4ck-transactions.csv");
       setExportMsg("Đã tạo file CSV giao dịch.");
@@ -222,7 +233,13 @@ export default function SettingsPage() {
         <p style={styles.description}>Thông tin cơ bản và chỉnh sửa hồ sơ.</p>
 
         <div style={styles.accountRow}>
-          <div style={styles.avatarCircle}>{(user?.name || user?.email || "F")[0]?.toUpperCase()}</div>
+          <div style={styles.avatarRing}>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" style={styles.avatarImg} />
+            ) : (
+              <div style={styles.avatarCircle}>{(user?.name || user?.email || "F")[0]?.toUpperCase()}</div>
+            )}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={styles.accountName}>{user?.name || "Chưa đặt tên"}</div>
             <div style={styles.accountEmail}>{user?.email || "Đang tải email..."}</div>
@@ -246,6 +263,14 @@ export default function SettingsPage() {
           </div>
           <div style={styles.field}>
             <InputField label="Email" value={user?.email || ""} disabled />
+          </div>
+          <div style={styles.field}>
+            <InputField
+              label="Ảnh đại diện (URL)"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              placeholder="https://example.com/avatar.png"
+            />
           </div>
         </div>
 
@@ -291,8 +316,19 @@ export default function SettingsPage() {
       <Card animate custom={1} title="Xuất dữ liệu" style={styles.card}>
         <p style={styles.description}>Tải về giao dịch để lưu trữ hoặc phân tích.</p>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Button onClick={handleExport} disabled={exportLoading}>
-            {exportLoading ? "Đang tạo file..." : "Tải CSV giao dịch"}
+          <select
+            value={exportRange}
+            onChange={(e) => setExportRange(e.target.value)}
+            style={styles.selectSmall}
+            disabled={transactionsLoading}
+            title={transactionsLoading ? "Đang tải giao dịch..." : "Chọn khoảng dữ liệu"}
+          >
+            <option value="all">Toàn bộ</option>
+            <option value="month">Tháng này</option>
+            <option value="3months">3 tháng gần nhất</option>
+          </select>
+          <Button onClick={handleExport} disabled={exportLoading || transactionsLoading}>
+            {exportLoading ? "Đang tạo file..." : transactionsLoading ? "Đang tải giao dịch..." : "Tải CSV giao dịch"}
           </Button>
           <span style={styles.helperText}>Bao gồm các giao dịch theo toàn bộ thời gian.</span>
         </div>
@@ -447,6 +483,26 @@ function safeSetDisplayName(value) {
   }
 }
 
+function safeGetAvatarUrl() {
+  try {
+    return localStorage.getItem(AVATAR_URL_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function safeSetAvatarUrl(value) {
+  try {
+    if (value) {
+      localStorage.setItem(AVATAR_URL_KEY, value);
+    } else {
+      localStorage.removeItem(AVATAR_URL_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function buildTransactionsCsv(list = []) {
   const headers = ["id", "date", "type", "category", "amount", "note"];
   const rows = list.map((t) => {
@@ -479,6 +535,29 @@ function triggerCsvDownload(content, filename) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+function filterTransactionsByRange(list = [], range = "all") {
+  if (range === "all") return list;
+  const now = new Date();
+  if (range === "month") {
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    return list.filter((t) => {
+      const d = t.date ? new Date(t.date) : null;
+      return d && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+  }
+  if (range === "3months") {
+    const start = new Date(now);
+    start.setMonth(now.getMonth() - 2);
+    start.setDate(1);
+    return list.filter((t) => {
+      const d = t.date ? new Date(t.date) : null;
+      return d && d >= start && d <= now;
+    });
+  }
+  return list;
 }
 
 function getStrength(value) {
@@ -519,8 +598,8 @@ const styles = {
     marginBottom: 16,
   },
   avatarCircle: {
-    width: 54,
-    height: 54,
+    width: 50,
+    height: 50,
     borderRadius: "50%",
     background: "linear-gradient(135deg, rgba(124,58,237,0.95), rgba(14,165,233,0.95))",
     display: "grid",
@@ -528,7 +607,22 @@ const styles = {
     fontWeight: 800,
     color: "#0b1021",
     fontSize: 20,
+  },
+  avatarRing: {
+    width: 58,
+    height: 58,
+    borderRadius: "50%",
+    padding: 3,
+    background: "linear-gradient(135deg, rgba(124,58,237,0.9), rgba(14,165,233,0.9))",
+    display: "grid",
+    placeItems: "center",
     boxShadow: "0 14px 32px rgba(14,165,233,0.32)",
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+    borderRadius: "50%",
+    objectFit: "cover",
   },
   accountRow: {
     display: "flex",
@@ -578,6 +672,14 @@ const styles = {
     fontSize: 13,
     color: "#67e8f9",
     marginBottom: 8,
+  },
+  selectSmall: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(148,163,184,0.25)",
+    backgroundColor: "rgba(226,232,240,0.06)",
+    color: "var(--text-strong)",
+    fontWeight: 600,
   },
   toastStack: {
     position: "fixed",
