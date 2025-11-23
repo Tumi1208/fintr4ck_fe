@@ -337,6 +337,12 @@ export default function SettingsPage() {
 
       <Card animate custom={2} title="Bảo mật" style={styles.card}>
         <p style={styles.description}>Đổi mật khẩu để bảo vệ tài khoản của bạn.</p>
+        <p style={styles.helperText}>Khuyên dùng mật khẩu tối thiểu 8 ký tự, gồm chữ và số.</p>
+        {user?.passwordUpdatedAt || user?.updatedAt ? (
+          <p style={styles.helperText}>
+            Đổi mật khẩu lần cuối: {formatDate(user.passwordUpdatedAt || user.updatedAt)}
+          </p>
+        ) : null}
 
         {!showPwdForm && (
           <Button variant="ghost" onClick={() => setShowPwdForm(true)}>
