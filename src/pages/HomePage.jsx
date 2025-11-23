@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import PageTransition from "../components/PageTransition";
 
@@ -91,6 +91,14 @@ const afterList = [
   "FintrAI đề xuất cắt phí, tăng tiết kiệm rõ ràng",
 ];
 
+const demoCategories = ["Ăn uống", "Đi lại", "Hóa đơn", "Tiết kiệm", "Đầu tư"];
+
+const aiSamples = [
+  { q: "Tháng này chi gì nhiều?", a: "Bạn đang chi 42% cho Ăn uống và 26% cho Đi lại. Hãy đặt trần tuần + tự động chuyển phần dư sang tiết kiệm." },
+  { q: "Làm sao tiết kiệm?", a: "Tạm đóng băng 2 subscription (250k/tháng), đặt cảnh báo 500k/ngày, chuyển 10% thu nhập vào quỹ khẩn cấp ngay khi nhận lương." },
+  { q: "Ngân sách 50/30/20 là gì?", a: "50% thiết yếu, 30% mong muốn, 20% tiết kiệm/đầu tư. FintrAI có thể chia và cảnh báo khi bạn vượt từng phần." },
+];
+
 const stays = [
   { title: "Quỹ khẩn cấp", price: "Đã đạt 35.000.000đ", rating: "Tiến độ 70%", tag: "On-track", image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=900&q=80" },
   { title: "Trả nợ thẻ tín dụng", price: "Còn 12.500.000đ", rating: "Tiến độ 40%", tag: "Cần đẩy nhanh", image: "https://images.unsplash.com/photo-1542728000-268c0f9bddc7?auto=format&fit=crop&w=900&q=80" },
@@ -117,6 +125,17 @@ export default function HomePage() {
   const [budgetUsage, setBudgetUsage] = useState(0);
   const [chartReady, setChartReady] = useState(false);
   const [socialCounts, setSocialCounts] = useState(socialMetrics.map(() => 0));
+  const [activeNav, setActiveNav] = useState("popular");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [demoAmount, setDemoAmount] = useState("");
+  const [demoCategory, setDemoCategory] = useState(demoCategories[0]);
+  const [demoNote, setDemoNote] = useState("");
+  const [demoEntry, setDemoEntry] = useState(null);
+  const [aiResponse, setAiResponse] = useState(aiSamples[0].a);
+  const popularRef = useRef(null);
+  const dealsRef = useRef(null);
+  const staysRef = useRef(null);
+  const sectionRefs = { popular: popularRef, deals: dealsRef, stays: staysRef };
   const cashflowSeries = [32, 40, 36, 48, 62, 58, 72, 68, 86, 94, 102, 96];
   const budgetSeries = [52, 48, 54, 60, 58, 66, 70, 68, 72, 76, 80, 78];
   const lastCash = cashflowSeries[cashflowSeries.length - 1];
@@ -168,6 +187,54 @@ export default function HomePage() {
     return () => cancelAnimationFrame(frameId);
   }, []);
 
+  useEffect(() => {
+    const token = localStorage.getItem("fintr4ck_token");
+    setIsLoggedIn(Boolean(token));
+  }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute("data-section");
+            if (id) setActiveNav(id);
+          }
+        });
+      },
+      { threshold: 0.42 }
+    );
+
+    Object.values(sectionRefs).forEach((ref) => {
+      if (ref.current) observer.observe(ref.current);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const handleScrollTo = (key) => {
+    const target = sectionRefs[key]?.current;
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const handleDemoSubmit = (e) => {
+    e.preventDefault();
+    if (!demoAmount) return;
+    const entry = {
+      amount: Number(demoAmount.replace(/\D/g, "")) || Number(demoAmount),
+      category: demoCategory,
+      note: demoNote,
+      type: "CHI TIÊU",
+    };
+    setDemoEntry(entry);
+  };
+
+  const handleAiSample = (ans) => {
+    setAiResponse(ans);
+  };
+
   return (
     <PageTransition style={styles.page}>
       <style>{marqueeStyle}</style>
@@ -180,13 +247,25 @@ export default function HomePage() {
           </div>
         </div>
         <nav style={styles.nav}>
-          <a href="#popular" style={styles.navItem}>Phổ biến</a>
-          <a href="#deals" style={styles.navItem}>Gợi ý</a>
-          <a href="#stays" style={styles.navItem}>Mục tiêu</a>
+          {[
+            { key: "popular", label: "Phổ biến" },
+            { key: "deals", label: "Gợi ý" },
+            { key: "stays", label: "Mục tiêu" },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => handleScrollTo(item.key)}
+              style={{ ...styles.navItem, ...(activeNav === item.key ? styles.navItemActive : {}) }}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
         <div style={styles.actions}>
           <Link to="/login" style={styles.linkGhost}>Đăng nhập</Link>
-          <Link to="/register" style={styles.linkPrimary}>Dùng thử miễn phí</Link>
+          <Link to={isLoggedIn ? "/dashboard" : "/register"} style={styles.linkPrimary}>
+            {isLoggedIn ? "Vào Dashboard" : "Dùng thử miễn phí"}
+          </Link>
         </div>
       </header>
 
@@ -197,7 +276,9 @@ export default function HomePage() {
             <h1 style={styles.heroTitle}>Kiểm soát dòng tiền, tiết kiệm chi tiêu và đạt mục tiêu rõ ràng.</h1>
             <p style={styles.heroDesc}>Ghi giao dịch, xem báo cáo tức thì và nhận gợi ý hành động thông minh cho ví tiền của bạn.</p>
             <div style={styles.heroButtons}>
-              <Link to="/register" style={styles.ctaPrimary}>Khám phá ngay</Link>
+              <Link to={isLoggedIn ? "/dashboard" : "/register"} style={styles.ctaPrimary}>
+                {isLoggedIn ? "Vào Dashboard" : "Khám phá ngay"}
+              </Link>
               <Link to="/login" style={styles.ctaGhost}>Xem demo</Link>
             </div>
           </div>
@@ -274,6 +355,91 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section style={styles.demoSection}>
+          <div style={styles.demoGrid}>
+            <div style={styles.demoCard}>
+              <div style={styles.demoHeader}>
+                <div style={styles.demoTitle}>Thử ghi giao dịch</div>
+                <div style={styles.demoHint}>Không cần đăng nhập</div>
+              </div>
+              <form style={styles.demoForm} onSubmit={handleDemoSubmit}>
+                <label style={styles.demoLabel}>
+                  Số tiền
+                  <input
+                    style={styles.demoInput}
+                    type="number"
+                    value={demoAmount}
+                    onChange={(e) => setDemoAmount(e.target.value)}
+                    placeholder="50.000"
+                    min="0"
+                  />
+                </label>
+                <label style={styles.demoLabel}>
+                  Danh mục
+                  <select
+                    style={styles.demoSelect}
+                    value={demoCategory}
+                    onChange={(e) => setDemoCategory(e.target.value)}
+                  >
+                    {demoCategories.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </label>
+                <label style={styles.demoLabel}>
+                  Ghi chú (tuỳ chọn)
+                  <input
+                    style={styles.demoInput}
+                    type="text"
+                    value={demoNote}
+                    onChange={(e) => setDemoNote(e.target.value)}
+                    placeholder="Cafe với team"
+                  />
+                </label>
+                <button type="submit" style={styles.demoButton}>Thử ngay</button>
+              </form>
+              {demoEntry && (
+                <div style={styles.demoPreview}>
+                  <div style={styles.demoBadge}>Ghi mới</div>
+                  <div style={styles.demoPreviewText}>
+                    Bạn vừa ghi {demoEntry.type} {demoEntry.amount.toLocaleString("vi-VN")}đ – {demoEntry.category.toLowerCase()}
+                  </div>
+                  <div style={styles.demoMini}>
+                    <div>
+                      <div style={styles.demoMiniLabel}>Số dư demo</div>
+                      <div style={styles.demoMiniValue}>{(5200000 - demoEntry.amount).toLocaleString("vi-VN")}đ</div>
+                    </div>
+                    <div style={styles.demoMiniBar}>
+                      <div style={{ ...styles.demoMiniFill, width: `${Math.max(12, 100 - demoEntry.amount / 80000)}%` }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={styles.aiCard}>
+              <div style={styles.demoHeader}>
+                <div style={styles.demoTitle}>Hỏi FintrAI nhanh</div>
+                <div style={styles.demoHint}>Preview realtime</div>
+              </div>
+              <div style={styles.aiChips}>
+                {aiSamples.map((s) => (
+                  <button key={s.q} style={styles.aiChip} onClick={() => handleAiSample(s.a)}>
+                    {s.q}
+                  </button>
+                ))}
+              </div>
+              <div style={styles.aiResponse}>
+                <div style={styles.aiAvatar}>AI</div>
+                <div>
+                  <div style={styles.aiLabel}>FintrAI</div>
+                  <div style={styles.aiText}>{aiResponse}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section style={styles.howSection}>
           <h2 style={styles.sectionTitle}>Fintr4ck hoạt động thế nào?</h2>
           <div style={styles.howGrid}>
@@ -317,7 +483,7 @@ export default function HomePage() {
           </div>
         </section>
 
-    <section id="popular" style={styles.section}>
+    <section id="popular" ref={sectionRefs.popular} data-section="popular" style={styles.section}>
       <h2 style={styles.sectionTitle}>Các danh mục được dùng nhiều</h2>
           <div style={styles.tabs}>
             {tabSections.map((tab, idx) => (
@@ -342,7 +508,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="deals" style={styles.section}>
+        <section id="deals" ref={sectionRefs.deals} data-section="deals" style={styles.section}>
           <h2 style={styles.sectionTitle}>Gợi ý tiết kiệm</h2>
           <div style={styles.dealsGrid}>
             {deals.map((deal) => (
@@ -357,7 +523,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="stays" style={styles.section}>
+        <section id="stays" ref={sectionRefs.stays} data-section="stays" style={styles.section}>
           <h2 style={styles.sectionTitle}>Mục tiêu tài chính nổi bật</h2>
           <div style={styles.stayWrap}>
             <div style={styles.stayTrack}>
@@ -431,7 +597,22 @@ const styles = {
   logoName: { fontWeight: 800, fontSize: 18 },
   logoTagline: { fontSize: 12, color: palette.muted },
   nav: { display: "flex", gap: 16 },
-  navItem: { color: palette.muted, textDecoration: "none", fontWeight: 600 },
+  navItem: {
+    color: palette.muted,
+    textDecoration: "none",
+    fontWeight: 700,
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    padding: "8px 10px",
+    borderRadius: 10,
+    transition: "color 0.2s ease, background 0.2s ease",
+  },
+  navItemActive: {
+    color: palette.text,
+    background: "rgba(124,58,237,0.16)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.25)",
+  },
   actions: { display: "flex", gap: 10 },
  linkGhost: {
    padding: "10px 14px",
@@ -499,6 +680,133 @@ const styles = {
   },
   socialValue: { fontWeight: 800, fontSize: 22, color: palette.text },
   socialLabel: { color: palette.muted, fontSize: 13 },
+  demoSection: {
+    background: palette.card,
+    borderRadius: 24,
+    border: `1px solid ${palette.border}`,
+    padding: 22,
+    boxShadow: palette.shadow,
+  },
+  demoGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 14,
+  },
+  demoCard: {
+    borderRadius: 16,
+    border: `1px solid ${palette.border}`,
+    padding: 16,
+    background: "rgba(255,255,255,0.04)",
+    boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+    display: "grid",
+    gap: 12,
+  },
+  demoHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  demoTitle: { fontWeight: 800, fontSize: 16 },
+  demoHint: { color: palette.muted, fontSize: 13 },
+  demoForm: { display: "grid", gap: 10 },
+  demoLabel: { display: "grid", gap: 6, color: palette.muted, fontSize: 13, fontWeight: 700 },
+  demoInput: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.04)",
+    color: palette.text,
+  },
+  demoSelect: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.04)",
+    color: palette.text,
+  },
+  demoButton: {
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "none",
+    background: "linear-gradient(135deg, #7c3aed, #0ea5e9)",
+    color: "#f8fafc",
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow: "0 12px 28px rgba(14,165,233,0.3)",
+  },
+  demoPreview: {
+    marginTop: 4,
+    padding: 12,
+    borderRadius: 14,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(14,165,233,0.06)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.3)",
+    display: "grid",
+    gap: 8,
+  },
+  demoBadge: {
+    alignSelf: "flex-start",
+    padding: "4px 8px",
+    borderRadius: 999,
+    background: "rgba(124,58,237,0.16)",
+    color: "#c4b5fd",
+    fontWeight: 700,
+    fontSize: 12,
+  },
+  demoPreviewText: { fontWeight: 700, color: palette.text },
+  demoMini: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  demoMiniLabel: { color: palette.muted, fontSize: 12 },
+  demoMiniValue: { fontWeight: 800, color: palette.text },
+  demoMiniBar: {
+    flex: 1,
+    height: 10,
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.08)",
+    border: `1px solid ${palette.border}`,
+    overflow: "hidden",
+  },
+  demoMiniFill: {
+    height: "100%",
+    background: "linear-gradient(135deg, #22c55e, #0ea5e9)",
+  },
+  aiCard: {
+    borderRadius: 16,
+    border: `1px solid ${palette.border}`,
+    padding: 16,
+    background: "rgba(255,255,255,0.05)",
+    boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+    display: "grid",
+    gap: 12,
+  },
+  aiChips: { display: "flex", flexWrap: "wrap", gap: 8 },
+  aiChip: {
+    border: `1px solid ${palette.border}`,
+    borderRadius: 999,
+    padding: "8px 12px",
+    background: "rgba(255,255,255,0.05)",
+    color: palette.text,
+    fontWeight: 700,
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.22)",
+  },
+  aiResponse: {
+    display: "flex",
+    gap: 10,
+    alignItems: "flex-start",
+    borderRadius: 14,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(11,16,33,0.6)",
+    padding: 12,
+  },
+  aiAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    background: "linear-gradient(135deg, #7c3aed, #0ea5e9)",
+    display: "grid",
+    placeItems: "center",
+    fontWeight: 800,
+    color: "#0b1021",
+  },
+  aiLabel: { fontWeight: 800, color: palette.text },
+  aiText: { color: palette.muted, lineHeight: 1.5, fontSize: 14 },
   howSection: {
     background: palette.card,
     borderRadius: 24,
