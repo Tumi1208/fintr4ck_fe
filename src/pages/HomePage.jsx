@@ -218,9 +218,10 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+          <div style={styles.heroGlow} aria-hidden />
         </section>
 
-        <section id="popular" style={styles.section}>
+    <section id="popular" style={styles.section}>
           <h2 style={styles.sectionTitle}>Các danh mục được dùng nhiều</h2>
           <div style={styles.tabs}>
             {tabSections.map((tab, idx) => (
@@ -364,8 +365,22 @@ const styles = {
     borderRadius: 28,
     border: `1px solid ${palette.border}`,
     boxShadow: palette.shadow,
+    position: "relative",
+    overflow: "visible",
+    isolation: "isolate",
   },
-  heroLeft: { display: "grid", gap: 14 },
+  heroGlow: {
+    position: "absolute",
+    inset: "auto 0 -32px 0",
+    height: 120,
+    background: "radial-gradient(120% 70% at 50% 0%, rgba(124,58,237,0.14), rgba(14,165,233,0.08) 40%, transparent 70%)",
+    opacity: 0.09,
+    filter: "blur(38px)",
+    pointerEvents: "none",
+    transform: "translateY(-12px)",
+    zIndex: 0,
+  },
+  heroLeft: { display: "grid", gap: 14, position: "relative", zIndex: 1 },
   pill: {
     alignSelf: "flex-start",
     padding: "6px 12px",
@@ -387,6 +402,8 @@ const styles = {
     padding: 18,
     display: "grid",
     gap: 12,
+    position: "relative",
+    zIndex: 1,
   },
   heroStats: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
   cardLabel: { color: palette.muted, fontSize: 13 },
