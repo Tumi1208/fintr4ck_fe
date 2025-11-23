@@ -67,6 +67,12 @@ const deals = [
   { title: "Thử thách tiết kiệm 7 ngày", desc: "Giữ thói quen tốt với checklist hằng ngày", cta: "Bắt đầu thử thách" },
 ];
 
+const howSteps = [
+  { title: "Ghi giao dịch 10 giây", desc: "Thêm thu/chi nhanh với gợi ý danh mục và nguồn tiền", icon: "📝" },
+  { title: "Theo dõi ngân sách & cảnh báo", desc: "Tự động trừ ngân sách, cảnh báo khi sắp vượt ngưỡng", icon: "📊" },
+  { title: "FintrAI gợi ý tối ưu", desc: "Đề xuất cắt giảm phí, tối ưu dòng tiền và thói quen chi", icon: "✨" },
+];
+
 const stays = [
   { title: "Quỹ khẩn cấp", price: "Đã đạt 35.000.000đ", rating: "Tiến độ 70%", tag: "On-track", image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=900&q=80" },
   { title: "Trả nợ thẻ tín dụng", price: "Còn 12.500.000đ", rating: "Tiến độ 40%", tag: "Cần đẩy nhanh", image: "https://images.unsplash.com/photo-1542728000-268c0f9bddc7?auto=format&fit=crop&w=900&q=80" },
@@ -218,7 +224,22 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <div style={styles.heroGlow} aria-hidden />
+        </section>
+        <div style={styles.heroGlow} aria-hidden />
+
+        <section style={styles.howSection}>
+          <h2 style={styles.sectionTitle}>Fintr4ck hoạt động thế nào?</h2>
+          <div style={styles.howGrid}>
+            {howSteps.map((step) => (
+              <div key={step.title} style={styles.howCard}>
+                <div style={styles.howIcon}>{step.icon}</div>
+                <div>
+                  <div style={styles.howTitle}>{step.title}</div>
+                  <div style={styles.howDesc}>{step.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
 
     <section id="popular" style={styles.section}>
@@ -267,18 +288,18 @@ export default function HomePage() {
             <div style={styles.stayTrack}>
               {stayMarquee.map((stay, idx) => (
                 <div key={`${stay.title}-${idx}`} style={styles.stayCard}>
-                  <div
-                    style={{
-                      ...styles.stayThumb,
-                      backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.12) 10%, rgba(11,16,33,0.72) 70%), url(${stay.image})`,
-                    }}
-                  />
-                  <div style={styles.stayBody}>
-                    <div style={styles.stayTitle}>{stay.title}</div>
-                    <div style={styles.stayTag}>{stay.tag} • {stay.rating}</div>
-                    <div style={styles.stayPrice}>{stay.price}</div>
+                    <div
+                      style={{
+                        ...styles.stayThumb,
+                        backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.12) 10%, rgba(11,16,33,0.72) 70%), url(${stay.image})`,
+                      }}
+                    />
+                    <div style={styles.stayBody}>
+                      <div style={styles.stayTitle}>{stay.title}</div>
+                      <div style={styles.stayTag}>{stay.tag} • {stay.rating}</div>
+                      <div style={styles.stayPrice}>{stay.price}</div>
+                    </div>
                   </div>
-                </div>
               ))}
             </div>
           </div>
@@ -380,6 +401,41 @@ const styles = {
     transform: "translateY(-12px)",
     zIndex: 0,
   },
+  howSection: {
+    background: palette.card,
+    borderRadius: 24,
+    border: `1px solid ${palette.border}`,
+    padding: 22,
+    boxShadow: palette.shadow,
+  },
+  howGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+    gap: 12,
+  },
+  howCard: {
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-start",
+    padding: 14,
+    borderRadius: 16,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.05)",
+    boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+  },
+  howIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    display: "grid",
+    placeItems: "center",
+    fontSize: 22,
+    background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(14,165,233,0.18))",
+    border: `1px solid ${palette.border}`,
+    boxShadow: "0 12px 24px rgba(0,0,0,0.28)",
+  },
+  howTitle: { fontWeight: 800, fontSize: 16, marginBottom: 4 },
+  howDesc: { color: palette.muted, fontSize: 14, lineHeight: 1.5 },
   heroLeft: { display: "grid", gap: 14, position: "relative", zIndex: 1 },
   pill: {
     alignSelf: "flex-start",
