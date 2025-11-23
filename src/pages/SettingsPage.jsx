@@ -418,8 +418,13 @@ export default function SettingsPage() {
         )}
       </Card>
 
-      <Card animate custom={3} title="Danger Zone" style={styles.card}>
-        <p style={styles.description}>Xoá tài khoản và toàn bộ dữ liệu liên quan. Hãy cẩn thận.</p>
+      <Card
+        animate
+        custom={3}
+        title="Danger Zone ⚠️"
+        style={{ ...styles.card, ...styles.dangerCard }}
+      >
+        <p style={styles.description}>Xoá tài khoản và toàn bộ dữ liệu liên quan. Gõ DELETE để xác nhận (phân biệt hoa/thường).</p>
 
         <InputField
           label='Gõ "DELETE" để xác nhận'
@@ -432,6 +437,13 @@ export default function SettingsPage() {
           variant="danger"
           onClick={handleDeleteAccount}
           disabled={dangerLoading || dangerConfirm !== "DELETE"}
+          style={{
+            opacity: dangerConfirm === "DELETE" ? 1 : 0.6,
+            cursor: dangerConfirm === "DELETE" ? "pointer" : "not-allowed",
+            transform: dangerConfirm === "DELETE" ? "scale(1.02)" : "scale(1)",
+            transition: "transform 0.18s ease, opacity 0.18s ease",
+            boxShadow: dangerConfirm === "DELETE" ? "0 16px 36px rgba(239,68,68,0.25)" : "none",
+          }}
         >
           {dangerLoading ? "Đang xoá..." : "Xoá tài khoản"}
         </Button>
@@ -707,5 +719,9 @@ const styles = {
     fontWeight: 700,
     boxShadow: "0 18px 40px rgba(0,0,0,0.35), 0 0 0 6px rgba(124,58,237,0.08)",
     transition: "opacity 0.25s ease, transform 0.25s ease",
+  },
+  dangerCard: {
+    border: "1px solid rgba(239,68,68,0.32)",
+    boxShadow: "0 18px 42px rgba(239,68,68,0.18)",
   },
 };
