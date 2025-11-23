@@ -73,6 +73,12 @@ const howSteps = [
   { title: "FintrAI gợi ý tối ưu", desc: "Đề xuất cắt giảm phí, tối ưu dòng tiền và thói quen chi", icon: "✨" },
 ];
 
+const socialMetrics = [
+  { title: "người dùng", target: 10.2, suffix: "k" },
+  { title: "giao dịch được ghi", target: 2.1, suffix: "M" },
+  { title: "đánh giá", target: 4.8, suffix: "★" },
+];
+
 const beforeList = [
   "Ghi chép rời rạc, thiếu thống nhất danh mục",
   "Không rõ tiền đi đâu, cảnh báo vượt ngân sách trễ",
@@ -110,6 +116,7 @@ export default function HomePage() {
   const [netGrowth, setNetGrowth] = useState(0);
   const [budgetUsage, setBudgetUsage] = useState(0);
   const [chartReady, setChartReady] = useState(false);
+  const [socialCounts, setSocialCounts] = useState(socialMetrics.map(() => 0));
   const cashflowSeries = [32, 40, 36, 48, 62, 58, 72, 68, 86, 94, 102, 96];
   const budgetSeries = [52, 48, 54, 60, 58, 66, 70, 68, 72, 76, 80, 78];
   const lastCash = cashflowSeries[cashflowSeries.length - 1];
@@ -142,6 +149,23 @@ export default function HomePage() {
   useEffect(() => {
     const id = requestAnimationFrame(() => setChartReady(true));
     return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    const duration = 1300;
+    const start = performance.now();
+    let frameId;
+    const targets = socialMetrics.map((m) => m.target);
+
+    const tick = (now) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = easeOutCubic(progress);
+      const next = targets.map((t) => Number((t * eased).toFixed(2)));
+      setSocialCounts(next);
+      if (progress < 1) frameId = requestAnimationFrame(tick);
+    };
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
   }, []);
 
   return (
@@ -238,6 +262,17 @@ export default function HomePage() {
           </div>
         </section>
         <div style={styles.heroGlow} aria-hidden />
+
+        <section style={styles.socialProof}>
+          <div style={styles.socialGrid}>
+            {socialMetrics.map((m, idx) => (
+              <div key={m.title} style={styles.socialItem}>
+                <div style={styles.socialValue}>{formatNumber(socialCounts[idx] ?? 0, m.suffix === "★" ? 1 : 1)}{m.suffix}</div>
+                <div style={styles.socialLabel}>{m.title}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section style={styles.howSection}>
           <h2 style={styles.sectionTitle}>Fintr4ck hoạt động thế nào?</h2>
@@ -441,6 +476,29 @@ const styles = {
     transform: "translateY(-12px)",
     zIndex: 0,
   },
+  socialProof: {
+    background: "rgba(255,255,255,0.03)",
+    borderRadius: 20,
+    border: `1px solid ${palette.border}`,
+    padding: 14,
+    boxShadow: "0 14px 36px rgba(0,0,0,0.35)",
+  },
+  socialGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 10,
+  },
+  socialItem: {
+    padding: "12px 14px",
+    borderRadius: 14,
+    background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(14,165,233,0.04))",
+    border: `1px solid ${palette.border}`,
+    display: "grid",
+    gap: 4,
+    boxShadow: "0 10px 22px rgba(0,0,0,0.28)",
+  },
+  socialValue: { fontWeight: 800, fontSize: 22, color: palette.text },
+  socialLabel: { color: palette.muted, fontSize: 13 },
   howSection: {
     background: palette.card,
     borderRadius: 24,
