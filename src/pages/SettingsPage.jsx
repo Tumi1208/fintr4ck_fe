@@ -1,5 +1,5 @@
 // src/pages/SettingsPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGetMe } from "../api/auth";
 import {
@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [name, setName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
+  const [profileMsgVisible, setProfileMsgVisible] = useState(false);
 
   // Password
   const [pwdForm, setPwdForm] = useState({
@@ -38,6 +39,10 @@ export default function SettingsPage() {
   const [pwdStrength, setPwdStrength] = useState("weak");
   const [exportMsg, setExportMsg] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+  const profileMsgTimerRef = useRef(null);
+  const profileFadeTimerRef = useRef(null);
 
   // Danger zone
   const [dangerLoading, setDangerLoading] = useState(false);
@@ -60,6 +65,12 @@ export default function SettingsPage() {
       }
     }
     init();
+
+    return () => {
+      clearTimeout(toastTimerRef.current);
+      clearTimeout(profileMsgTimerRef.current);
+      clearTimeout(profileFadeTimerRef.current);
+    };
   }, []);
 
   async function handleProfileSave() {
@@ -75,8 +86,17 @@ export default function SettingsPage() {
       setName(resolvedName);
       safeSetDisplayName(resolvedName);
       setProfileMsg("Đã lưu thay đổi");
+      setProfileMsgVisible(true);
+      clearTimeout(profileFadeTimerRef.current);
+      clearTimeout(profileMsgTimerRef.current);
+      profileFadeTimerRef.current = setTimeout(() => setProfileMsgVisible(false), 2300);
+      profileMsgTimerRef.current = setTimeout(() => setProfileMsg(""), 2600);
+      showToast("Đã lưu tên hiển thị ✓");
     } catch (err) {
       setProfileMsg(err.message || "Không thể lưu");
+      setProfileMsgVisible(true);
+      clearTimeout(profileFadeTimerRef.current);
+      clearTimeout(profileMsgTimerRef.current);
     } finally {
       setSavingProfile(false);
     }
@@ -164,6 +184,12 @@ export default function SettingsPage() {
     }
   }
 
+  function showToast(message) {
+    setToast({ id: Date.now(), message });
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
+  }
+
   return (
     <PageTransition>
       <div style={styles.head}>
@@ -206,7 +232,17 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {profileMsg && <div style={styles.infoText}>{profileMsg}</div>}
+        <div
+          style={{
+            ...styles.infoText,
+            opacity: profileMsgVisible && profileMsg ? 1 : 0,
+            maxHeight: profileMsgVisible && profileMsg ? 40 : 0,
+            transition: "opacity 0.3s ease, max-height 0.3s ease",
+          }}
+          aria-live="polite"
+        >
+          {profileMsg}
+        </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Button onClick={handleProfileSave} disabled={savingProfile}>
@@ -344,8 +380,22 @@ export default function SettingsPage() {
         onConfirm={handleConfirm}
         onCancel={dialog?.cancelText ? handleCancel : handleConfirm}
       />
+
+      {toast && (
+        <div style={styles.toastStack}>
+          <div style={{ ...styles.toast, opacity: toast ? 1 : 0, transform: toast ? "translateY(0)" : "translateY(8px)" }}>
+            {toast.message}
+          </div>
+        </div>
+      )}
     </PageTransition>
   );
+
+  function showToast(message) {
+    setToast({ id: Date.now(), message });
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
+  }
 }
 
 function formatDate(value) {
@@ -503,5 +553,26 @@ const styles = {
     fontSize: 13,
     color: "#67e8f9",
     marginBottom: 8,
+  },
+  toastStack: {
+    position: "fixed",
+    right: 18,
+    bottom: 18,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    zIndex: 1200,
+  },
+  toast: {
+    minWidth: 220,
+    maxWidth: 320,
+    padding: "12px 14px",
+    borderRadius: 14,
+    background: "linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.25)",
+    color: "#e2e8f0",
+    fontWeight: 700,
+    boxShadow: "0 18px 40px rgba(0,0,0,0.35), 0 0 0 6px rgba(124,58,237,0.08)",
+    transition: "opacity 0.25s ease, transform 0.25s ease",
   },
 };
