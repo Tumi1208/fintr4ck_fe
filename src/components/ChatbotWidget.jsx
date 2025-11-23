@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { detectIntent } from "../bot/intentEngine";
 import { parseNaturalInput, parseAmount } from "../bot/parsers";
+import { apiCreateTransaction } from "../api/transactions";
+import { apiCreateCategory } from "../api/categories";
+import { authApiHelpers } from "../api/auth";
 
 function formatCurrency(amount) {
   return amount.toLocaleString("vi-VN") + "đ";
@@ -72,18 +76,27 @@ function buildBotReply(text) {
         intent,
         text:
           "Báo cáo nằm ở Dashboard/Reports. Bạn có thể xem biểu đồ breakdown, lọc theo thời gian và danh mục để theo dõi xu hướng chi tiêu.",
+        actions: [
+          { label: "Mở Dashboard", to: "/app" },
+          { label: "Xem Báo cáo", to: "/app" },
+        ],
       };
     case "create_category":
       return {
         intent,
         text:
           "Vào mục Categories, bấm “Thêm danh mục”, chọn loại (Thu/Chi), đặt tên và icon rồi lưu. Danh mục mới sẽ xuất hiện khi thêm giao dịch.",
+        actions: [{ label: "Mở Categories", to: "/app/categories" }],
       };
     case "join_challenge":
       return {
         intent,
         text:
           "Bạn mở tab Challenges, chọn thử thách muốn tham gia và bấm Join. Hệ thống sẽ theo dõi tiến độ và nhắc bạn qua bảng điều khiển.",
+        actions: [
+          { label: "Mở My Challenges", to: "/app/my-challenges" },
+          { label: "Tham gia bằng ID", type: "join_challenge_prompt" },
+        ],
       };
     case "help":
       return {
@@ -110,9 +123,12 @@ export default function ChatbotWidget() {
   const [lastIntent, setLastIntent] = useState(null);
   const [draftStep, setDraftStep] = useState(null);
   const [draftTransactionPartial, setDraftTransactionPartial] = useState(initialDraftState);
+  const [confirmingId, setConfirmingId] = useState(null);
   const [messages, setMessages] = useState([
     { from: "bot", text: "Xin chào! Tôi là FIntrAI. Bạn có thể hỏi về giao dịch, danh mục, báo cáo hoặc bảo mật." },
   ]);
+  const navigate = useNavigate();
+  const location = useLocation();
   const listRef = useRef(null);
   const closeTimerRef = useRef(null);
   const typingTimersRef = useRef([]);
@@ -241,6 +257,92 @@ export default function ChatbotWidget() {
     return false;
   }
 
+  async function handleJoinChallengePrompt() {
+    const id = window.prompt("Nhập ID challenge bạn muốn tham gia:");
+    if (!id) return;
+    try {
+      setBotStatus("thinking");
+      const { API_BASE, getAuthHeaders } = authApiHelpers;
+      const res = await fetch(`${API_BASE}/challenges/${id}/join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Không thể tham gia challenge");
+      setMessages((prev) => [...prev, { from: "bot", text: "Đã tham gia challenge ✓" }]);
+      refreshAppData("/app/my-challenges");
+    } catch (err) {
+      setMessages((prev) => [...prev, { from: "bot", text: `Tham gia thất bại: ${err.message || "Lỗi"} ` }]);
+    } finally {
+      setBotStatus("idle");
+    }
+  }
+
+  function handleAction(action) {
+    if (action.to) navigate(action.to);
+    if (action.type === "join_challenge_prompt") {
+      handleJoinChallengePrompt();
+    }
+  }
+
+  function refreshAppData(preferredPath) {
+    if (preferredPath && location.pathname !== preferredPath) {
+      navigate(preferredPath);
+      return;
+    }
+    if (location.pathname.startsWith("/app")) {
+      window.location.reload();
+    }
+  }
+
+  async function handleConfirmDraft(message) {
+    if (!message?.draft || confirmingId) return;
+    try {
+      setConfirmingId(message.id);
+      if (message.draft.kind === "transaction") {
+        const payload = {
+          type: message.draft.draft.type,
+          amount: message.draft.draft.amount,
+          note: message.draft.draft.note,
+          categoryName: message.draft.draft.categoryName || undefined,
+          date: message.draft.draft.date instanceof Date ? message.draft.draft.date.toISOString() : new Date().toISOString(),
+        };
+        await apiCreateTransaction(payload);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === message.id ? { from: "bot", text: "Đã thêm giao dịch ✓" } : m))
+        );
+        refreshAppData("/app/transactions");
+      } else if (message.draft.kind === "category") {
+        const payload = {
+          name: message.draft.draft.name,
+          type: message.draft.draft.type || "expense",
+        };
+        await apiCreateCategory(payload);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === message.id ? { from: "bot", text: "Đã tạo danh mục ✓" } : m))
+        );
+        refreshAppData("/app/categories");
+      }
+    } catch (err) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? {
+                ...m,
+                draft: null,
+                text: `Không thể xử lý: ${err.message || "Đã có lỗi xảy ra"}`,
+              }
+            : m
+        )
+      );
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
   function handleOpen() {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     setIsAnimatingClose(false);
@@ -328,7 +430,9 @@ export default function ChatbotWidget() {
       const botReply = buildBotReply(trimmed);
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === typingId ? { from: "bot", text: botReply.text, chips: botReply.chips, id: typingId } : m
+          m.id === typingId
+            ? { from: "bot", text: botReply.text, chips: botReply.chips, actions: botReply.actions, id: typingId }
+            : m
         )
       );
       setBotStatus(botReply.intent === "unknown" ? "confused" : "idle");
@@ -433,6 +537,7 @@ export default function ChatbotWidget() {
                     <div style={styles.cardActions}>
                       <button
                         style={styles.secondaryBtn}
+                        disabled={confirmingId === m.id}
                         onClick={() => {
                           setDrafts((prev) => prev.filter((d) => d.id !== m.id));
                           setDraftStep(null);
@@ -445,17 +550,15 @@ export default function ChatbotWidget() {
                       </button>
                       <button
                         style={styles.primaryBtn}
+                        disabled={confirmingId === m.id}
                         onClick={() => {
                           setDrafts((prev) => prev.filter((d) => d.id !== m.id));
                           setDraftStep(null);
                           setDraftTransactionPartial(initialDraftState);
-                          setMessages((prev) => [
-                            ...prev,
-                            { from: "bot", text: "Đã lưu bản nháp. Bạn có thể mở form chi tiết để hoàn tất." },
-                          ]);
-                          }}
+                          handleConfirmDraft(m);
+                        }}
                       >
-                        Xác nhận
+                        {confirmingId === m.id ? "Đang lưu..." : "Xác nhận"}
                       </button>
                     </div>
                   </div>
@@ -467,6 +570,19 @@ export default function ChatbotWidget() {
                         {m.chips.map((chip) => (
                           <button key={chip} style={styles.chip} onClick={() => sendMessage(chip)}>
                             {chip}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    {m.actions?.length ? (
+                      <div style={styles.actionsRow}>
+                        {m.actions.map((action) => (
+                          <button
+                            key={action.label}
+                            style={styles.actionBtn}
+                            onClick={() => handleAction(action)}
+                          >
+                            {action.label}
                           </button>
                         ))}
                       </div>
@@ -749,6 +865,21 @@ const styles = {
     flexWrap: "wrap",
     gap: 8,
     marginTop: 8,
+  },
+  actionsRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  actionBtn: {
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "rgba(226,232,240,0.08)",
+    borderRadius: 10,
+    padding: "8px 12px",
+    color: "#E2E8F0",
+    fontWeight: 600,
+    cursor: "pointer",
   },
   chip: {
     border: "1px solid rgba(148,163,184,0.25)",
