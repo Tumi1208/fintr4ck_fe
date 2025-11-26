@@ -207,7 +207,7 @@ export default function TransactionsPage() {
       <div style={styles.pageHead}>
         <div>
           <p style={styles.kicker}>Nhật ký giao dịch</p>
-          <h1 style={styles.title}>Transactions</h1>
+          <h1 style={styles.title}>Giao dịch</h1>
           <p style={styles.lead}>Tìm kiếm, lọc và thao tác nhanh trên tất cả giao dịch.</p>
         </div>
         <Badge tone="info">{transactions.length} kết quả</Badge>

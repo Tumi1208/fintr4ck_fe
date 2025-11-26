@@ -189,7 +189,7 @@ export default function CategoriesPage() {
         <div style={styles.pageHead}>
           <div>
             <p style={styles.kicker}>Danh mục</p>
-            <h1 style={styles.title}>Categories</h1>
+            <h1 style={styles.title}>Danh mục</h1>
             <p style={styles.lead}>Tổ chức thu/chi rõ ràng để báo cáo mượt mà.</p>
           </div>
           <div style={styles.headActions}>

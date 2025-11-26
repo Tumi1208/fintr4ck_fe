@@ -45,54 +45,37 @@ function CrownIcon({ size = 18, color = "currentColor" }) {
   );
 }
 
-function getBadge(streak) {
-  if (streak >= 30) {
-    return {
-      label: "Royal Crown",
-      color: "linear-gradient(135deg, #FFD700, #FFB300)",
-      icon: CrownIcon,
-      effect: "pulse",
-    };
+function getProgressBadge(progress) {
+  if (progress >= 100) {
+    return { label: "Hoàn thành", color: "linear-gradient(135deg, #10b981, #22d3ee)", icon: CrownIcon, effect: "pulse" };
   }
-  if (streak >= 20) {
-    return {
-      label: "Diamond Peak",
-      color: "linear-gradient(90deg, #00e5ff, #7cf3ff)",
-      icon: DiamondIcon,
-      effect: "shine",
-    };
+  if (progress >= 75) {
+    return { label: "Gold Peak", color: "#FFD700", icon: MedalIcon, effect: "shadow" };
   }
-  if (streak >= 10) {
-    return {
-      label: "Gold Blaze",
-      color: "#FFD700",
-      icon: MedalIcon,
-      effect: "shadow",
-    };
+  if (progress >= 50) {
+    return { label: "Silver Flow", color: "#C0C0C0", icon: FlameIcon, effect: "shine-slow" };
   }
-  if (streak >= 5) {
-    return {
-      label: "Silver Flame",
-      color: "#C0C0C0",
-      icon: FlameIcon,
-      effect: "shine-slow",
-    };
+  if (progress >= 25) {
+    return { label: "Bronze Spark", color: "#CD7F32", icon: StarIcon, effect: "glow" };
   }
-  if (streak >= 1) {
-    return {
-      label: "Bronze Spark",
-      color: "#CD7F32",
-      icon: StarIcon,
-      effect: "glow",
-    };
-  }
+  return { label: "Bắt đầu", color: "rgba(148,163,184,0.45)", icon: StarIcon, effect: "" };
+}
+
+function getStreakBadge(streak) {
+  if (streak >= 30) return { label: "Royal Crown", color: "linear-gradient(135deg, #FFD700, #FFB300)", icon: CrownIcon, effect: "pulse" };
+  if (streak >= 20) return { label: "Diamond Peak", color: "linear-gradient(90deg, #00e5ff, #7cf3ff)", icon: DiamondIcon, effect: "shine" };
+  if (streak >= 10) return { label: "Gold Blaze", color: "#FFD700", icon: MedalIcon, effect: "shadow" };
+  if (streak >= 5) return { label: "Silver Flame", color: "#C0C0C0", icon: FlameIcon, effect: "shine-slow" };
+  if (streak >= 1) return { label: "Bronze Spark", color: "#CD7F32", icon: StarIcon, effect: "glow" };
   return null;
 }
 
-export default function StreakBadge({ streak }) {
-  const info = getBadge(streak);
+export default function StreakBadge({ streak, progress, completedDays, durationDays }) {
+  const normalizedProgress = typeof progress === "number" ? Math.min(100, Math.max(0, Math.round(progress))) : null;
+  const info = normalizedProgress !== null ? getProgressBadge(normalizedProgress) : getStreakBadge(streak);
   if (!info) return null;
   const Icon = info.icon;
+  const metaText = normalizedProgress !== null ? `${normalizedProgress}%` : `${streak} ngày`;
 
   return (
     <>
@@ -143,7 +126,7 @@ export default function StreakBadge({ streak }) {
       >
         <Icon size={18} color="#0B1021" />
         <span>{info.label}</span>
-        <span style={{ fontWeight: 700 }}>· {streak} ngày</span>
+        <span style={{ fontWeight: 700 }}>· {metaText}</span>
       </div>
     </>
   );

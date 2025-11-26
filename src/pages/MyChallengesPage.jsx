@@ -436,9 +436,7 @@ export default function MyChallengesPage() {
                     </span>
                   )}
                 </div>
-                <div style={styles.mutedSmall}>
-                  {completed}/{duration} ngày · Chuỗi ngày: {item.currentStreak}
-                </div>
+                <div style={styles.mutedSmall}>Chuỗi ngày: {item.currentStreak}</div>
 
                 <div style={styles.roadmapContainer}>
                   <div style={styles.roadmapHeader}>
@@ -478,11 +476,12 @@ export default function MyChallengesPage() {
               </div>
 
               <div style={styles.colStreak}>
-                {item.currentStreak > 0 ? (
-                  <StreakBadge streak={item.currentStreak} />
-                ) : (
-                  <span style={styles.mutedSmall}>Chưa có chuỗi</span>
-                )}
+                <StreakBadge
+                  progress={progress}
+                  completedDays={completed}
+                  durationDays={duration}
+                  streak={item.currentStreak}
+                />
               </div>
 
               <div style={styles.colStatus}>

@@ -223,7 +223,7 @@ export default function SettingsPage() {
       <div style={styles.head}>
         <div>
           <p style={styles.kicker}>Tài khoản</p>
-          <h1 style={styles.pageTitle}>Settings</h1>
+          <h1 style={styles.pageTitle}>Cài đặt</h1>
           <p style={styles.lead}>Thông tin cơ bản và chỉnh sửa hồ sơ. Quản lý bảo mật tài khoản.</p>
         </div>
         {user && <Badge tone="info">ID: {user._id?.slice(-6) || "user"}</Badge>}

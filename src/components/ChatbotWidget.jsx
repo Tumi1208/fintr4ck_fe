@@ -114,12 +114,12 @@ function buildBotReply(text) {
       return {
         intent,
         text:
-          "Để thêm khoản chi: vào Transactions, chọn loại Chi, nhập số tiền, danh mục và ghi chú rồi lưu. Bạn cũng có thể bấm Quick add ngay trên Dashboard.",
+          "Để thêm khoản chi: vào Giao dịch, chọn loại Chi, nhập số tiền, danh mục và ghi chú rồi lưu. Bạn cũng có thể bấm Quick add ngay trên Dashboard.",
       };
     case "add_income":
       return {
         intent,
-        text: "Bạn mở Transactions, chuyển sang tab Thu, nhập số tiền, danh mục thu và lưu để ghi nhận thu nhập mới.",
+        text: "Bạn mở Giao dịch, chuyển sang tab Thu, nhập số tiền, danh mục thu và lưu để ghi nhận thu nhập mới.",
       };
     case "report":
       return {
@@ -135,8 +135,8 @@ function buildBotReply(text) {
       return {
         intent,
         text:
-          "Vào mục Categories, bấm “Thêm danh mục”, chọn loại (Thu/Chi), đặt tên và icon rồi lưu. Danh mục mới sẽ xuất hiện khi thêm giao dịch.",
-        actions: [{ label: "Mở Categories", to: "/app/categories" }],
+          "Vào mục Danh mục, bấm “Thêm danh mục”, chọn loại (Thu/Chi), đặt tên và icon rồi lưu. Danh mục mới sẽ xuất hiện khi thêm giao dịch.",
+        actions: [{ label: "Mở Danh mục", to: "/app/categories" }],
       };
     case "join_challenge":
       return {
