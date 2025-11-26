@@ -14,12 +14,15 @@ import TemplatesPage from "./pages/TemplatesPage";
 import HomePage from "./pages/HomePage";
 import ChallengeListPage from "./pages/ChallengeListPage";
 import MyChallengesPage from "./pages/MyChallengesPage";
+import DemoPage from "./pages/DemoPage";
 
 function App() {
   return (
     <Routes>
       {/* Trang public */}
       <Route path="/" element={<HomePage />} />
+      <Route path="/demo" element={<DemoPage />} />
+      <Route path="/preview" element={<DemoPage />} />
 
       {/* Auth pages (không có sidebar) */}
       <Route path="/login" element={<LoginPage />} />
@@ -30,6 +33,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<Layout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="challenges" element={<ChallengeListPage />} />
           <Route path="my-challenges" element={<MyChallengesPage />} />
           <Route path="templates" element={<TemplatesPage />} />

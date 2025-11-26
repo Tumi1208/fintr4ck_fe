@@ -207,7 +207,7 @@ const styles = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
     marginBottom: 18,
   },
-  message: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 },
+  message: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, whiteSpace: "pre-line" },
   closeBtn: {
     width: 36,
     height: 36,

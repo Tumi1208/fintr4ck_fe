@@ -18,6 +18,7 @@ import SelectField from "../components/ui/SelectField";
 import Icon from "../components/ui/Icon";
 import ModalDialog from "../components/ModalDialog";
 import { useDialog } from "../hooks/useDialog";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 export default function TransactionsPage() {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ export default function TransactionsPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [editingCategoryId, setEditingCategoryId] = useState(null);
   const { dialog, showDialog, handleConfirm, handleCancel } = useDialog();
+  const { isMobile, isTablet } = useBreakpoint();
+  const filterColumns = isMobile ? 1 : isTablet ? 2 : 4;
 
   // State riêng cho ô tìm kiếm để xử lý độ trễ (Debounce)
   const [searchTerm, setSearchTerm] = useState(""); 
@@ -214,7 +217,13 @@ export default function TransactionsPage() {
       </div>
 
       <Card animate custom={0} style={{ marginBottom: 18 }}>
-        <div style={styles.filterBar}>
+        <div
+          style={{
+            ...styles.filterBar,
+            gridTemplateColumns: `repeat(${filterColumns}, minmax(0,1fr))`,
+            gap: isMobile ? 10 : 12,
+          }}
+        >
           <SelectField
             value={filters.type}
             onChange={(val) => setFilters({ ...filters, type: val })}
@@ -224,7 +233,7 @@ export default function TransactionsPage() {
               { value: "expense", label: "Chi tiêu" },
             ]}
             placeholder="Loại giao dịch"
-            style={{ flex: 1, minWidth: 160 }}
+            style={{ flex: 1, minWidth: isMobile ? "100%" : 160 }}
           />
 
           <SelectField
@@ -235,11 +244,11 @@ export default function TransactionsPage() {
               ...categories.map((c) => ({ value: c._id, label: c.name || "Danh mục" })),
             ]}
             placeholder="Tất cả danh mục"
-            style={{ flex: 1, minWidth: 220 }}
+            style={{ flex: 1, minWidth: isMobile ? "100%" : 220 }}
             maxHeight={260}
           />
 
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: isMobile ? "100%" : 0 }}>
             <InputField
               placeholder="Tìm ngày, danh mục, ghi chú..."
               value={searchTerm}
@@ -255,14 +264,26 @@ export default function TransactionsPage() {
             />
           </div>
 
-          <Button variant="ghost" style={{ padding: "12px 14px" }} onClick={fetchTransactions} title="Tải lại">
+          <Button
+            variant="ghost"
+            style={{ padding: "12px 14px", width: isMobile ? "100%" : "auto" }}
+            onClick={fetchTransactions}
+            title="Tải lại"
+          >
             <Icon name="refresh" tone="blue" size={18} background={false} />
           </Button>
         </div>
       </Card>
 
       <Card animate custom={1} style={{ position: "relative" }}>
-        <div style={styles.tableHeader}>
+        <div
+          style={{
+            ...styles.tableHeader,
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "flex-start" : "center",
+            gap: isMobile ? 10 : 0,
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-muted)", fontSize: 14 }}>
             <Badge tone="info">{transactions.length} giao dịch</Badge>
             <span style={{ color: "var(--text-muted)" }}>Danh sách sau lọc</span>
@@ -281,14 +302,21 @@ export default function TransactionsPage() {
         </div>
 
         {selectedIds.length > 0 && (
-          <div style={styles.bulkToolbar}>
+          <div
+            style={{
+              ...styles.bulkToolbar,
+              flexDirection: isMobile ? "column" : "row",
+              alignItems: isMobile ? "flex-start" : "center",
+              gap: isMobile ? 10 : 12,
+            }}
+          >
             <div style={styles.bulkInfo}>
               <Icon name="check" tone="blue" size={16} background={false} />
               <span>
                 Đã chọn <strong>{selectedIds.length}</strong> giao dịch
               </span>
             </div>
-            <div style={styles.bulkActions}>
+            <div style={{ ...styles.bulkActions, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
               <Button
                 variant="ghost"
                 style={{ padding: "10px 14px", opacity: bulkLoading ? 0.6 : 1 }}
@@ -352,98 +380,100 @@ export default function TransactionsPage() {
             </div>
           </div>
         ) : (
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: "center", width: 40 }}>
-                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
-                </th>
-                <th style={{ textAlign: "left", paddingLeft: 18 }}>Ngày</th>
-                <th style={{ textAlign: "left" }}>Danh mục</th>
-                <th style={{ textAlign: "left" }}>Loại</th>
-                <th style={{ textAlign: "left" }}>Ghi chú</th>
-                <th style={{ textAlign: "right" }}>Số tiền</th>
-                <th style={{ textAlign: "center", paddingRight: 18 }}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((t) => (
-                <tr key={t._id} style={styles.tr}>
-                  <td style={{ textAlign: "center" }}>
-                    <input type="checkbox" checked={selectedIds.includes(t._id)} onChange={() => toggleSelect(t._id)} />
-                  </td>
-                  <td style={{ paddingLeft: 18, color: "var(--text-strong)" }}>
-                    {new Date(t.date).toLocaleDateString("vi-VN")}
-                  </td>
-                  <td>
-                    {editingCategoryId === t._id ? (
-                      <SelectField
-                        value={t.category?._id || ""}
-                        onChange={(val) => {
-                          handleCategoryChange(t._id, val);
-                          setEditingCategoryId(null);
+          <div style={styles.tableScroll}>
+            <table style={{ ...styles.table, fontSize: isMobile ? 13 : 14, minWidth: 720 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "center", width: 40 }}>
+                    <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+                  </th>
+                  <th style={{ textAlign: "left", paddingLeft: 18 }}>Ngày</th>
+                  <th style={{ textAlign: "left" }}>Danh mục</th>
+                  <th style={{ textAlign: "left" }}>Loại</th>
+                  <th style={{ textAlign: "left" }}>Ghi chú</th>
+                  <th style={{ textAlign: "right" }}>Số tiền</th>
+                  <th style={{ textAlign: "center", paddingRight: 18 }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((t) => (
+                  <tr key={t._id} style={styles.tr}>
+                    <td style={{ textAlign: "center" }}>
+                      <input type="checkbox" checked={selectedIds.includes(t._id)} onChange={() => toggleSelect(t._id)} />
+                    </td>
+                    <td style={{ paddingLeft: 18, color: "var(--text-strong)" }}>
+                      {new Date(t.date).toLocaleDateString("vi-VN")}
+                    </td>
+                    <td>
+                      {editingCategoryId === t._id ? (
+                        <SelectField
+                          value={t.category?._id || ""}
+                          onChange={(val) => {
+                            handleCategoryChange(t._id, val);
+                            setEditingCategoryId(null);
+                          }}
+                          options={[
+                            { value: "", label: "Không phân loại" },
+                            ...categories
+                              .filter((c) => c.type === t.type)
+                              .map((c) => ({ value: c._id, label: renderCategoryLabel(c) })),
+                          ]}
+                          placeholder="Chọn danh mục"
+                          dropdownWidth={260}
+                          maxHeight={240}
+                          density="compact"
+                          style={{ width: "100%", minWidth: 0 }}
+                        />
+                      ) : (
+                        <div style={styles.categoryCell}>
+                          <button
+                            type="button"
+                            style={styles.categoryChip}
+                            onClick={() => setEditingCategoryId(t._id)}
+                            title="Chỉnh sửa danh mục"
+                          >
+                            <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
+                            <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
+                            <span style={styles.catTrailing}>
+                              <Icon name="edit" tone="slate" size={12} background={false} />
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          ...styles.tag,
+                          backgroundColor:
+                            t.type === "income" ? "rgba(34,197,94,0.16)" : "rgba(248,113,113,0.16)",
+                          color: t.type === "income" ? "#bbf7d0" : "#fecdd3",
+                          borderColor: t.type === "income" ? "rgba(34,197,94,0.35)" : "rgba(239,68,68,0.35)",
                         }}
-                        options={[
-                          { value: "", label: "Không phân loại" },
-                          ...categories
-                            .filter((c) => c.type === t.type)
-                            .map((c) => ({ value: c._id, label: renderCategoryLabel(c) })),
-                        ]}
-                        placeholder="Chọn danh mục"
-                        dropdownWidth={260}
-                        maxHeight={240}
-                        density="compact"
-                        style={{ width: "100%", minWidth: 0 }}
-                      />
-                    ) : (
-                      <div style={styles.categoryCell}>
-                        <button
-                          type="button"
-                          style={styles.categoryChip}
-                          onClick={() => setEditingCategoryId(t._id)}
-                          title="Chỉnh sửa danh mục"
-                        >
-                          <span style={styles.catBadgeIcon}>{renderTxnCategoryIcon(t.category)}</span>
-                          <span style={styles.catLabel}>{renderCategoryLabel(t.category)}</span>
-                          <span style={styles.catTrailing}>
-                            <Icon name="edit" tone="slate" size={12} background={false} />
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <span
+                      >
+                        {t.type === "income" ? "Income" : "Expense"}
+                      </span>
+                    </td>
+                    <td style={{ color: "var(--text-muted)" }}>{t.note}</td>
+                    <td
                       style={{
-                        ...styles.tag,
-                        backgroundColor:
-                          t.type === "income" ? "rgba(34,197,94,0.16)" : "rgba(248,113,113,0.16)",
-                        color: t.type === "income" ? "#bbf7d0" : "#fecdd3",
-                        borderColor: t.type === "income" ? "rgba(34,197,94,0.35)" : "rgba(239,68,68,0.35)",
+                        textAlign: "right",
+                        fontWeight: 700,
+                        color: t.type === "income" ? "#4ade80" : "#f87171",
                       }}
                     >
-                      {t.type === "income" ? "Income" : "Expense"}
-                    </span>
-                  </td>
-                  <td style={{ color: "var(--text-muted)" }}>{t.note}</td>
-                  <td
-                    style={{
-                      textAlign: "right",
-                      fontWeight: 700,
-                      color: t.type === "income" ? "#4ade80" : "#f87171",
-                    }}
-                  >
-                    {t.type === "expense" ? "-" : "+"}${t.amount.toLocaleString("en-US")}
-                  </td>
-                  <td style={{ textAlign: "center", paddingRight: 18 }}>
-                    <Button variant="danger" style={{ padding: "8px 12px" }} onClick={() => handleDelete(t._id)}>
-                      <Icon name="trash" tone="red" size={18} background={false} />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      {t.type === "expense" ? "-" : "+"}${t.amount.toLocaleString("en-US")}
+                    </td>
+                    <td style={{ textAlign: "center", paddingRight: 18 }}>
+                      <Button variant="danger" style={{ padding: "8px 12px" }} onClick={() => handleDelete(t._id)}>
+                        <Icon name="trash" tone="red" size={18} background={false} />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 
@@ -613,6 +643,7 @@ const styles = {
     color: "var(--text-strong)",
     fontWeight: 600,
   },
+  tableScroll: { width: "100%", overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: 14, color: "var(--text-strong)" },
   tr: { borderBottom: "1px solid rgba(148,163,184,0.12)", height: 60 },
   tag: {
@@ -659,5 +690,5 @@ const styles = {
   },
   emptyIcon: { fontSize: 28 },
   emptyText: { margin: 0, fontSize: 15, color: "var(--text-strong)" },
-  emptyActions: { display: "flex", gap: 10, justifyContent: "center" },
+  emptyActions: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" },
 };

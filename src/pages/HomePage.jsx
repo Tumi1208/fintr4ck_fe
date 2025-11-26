@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import PageTransition from "../components/PageTransition";
+import { useBreakpoint } from "../hooks/useBreakpoint";
+import ModalDialog from "../components/ModalDialog";
+import { apiCreateTransaction } from "../api/transactions";
 
 const palette = {
   bg: "#0b1021",
@@ -62,11 +65,6 @@ const tabSections = [
   },
 ];
 
-const deals = [
-  { title: "Gợi ý tối ưu phí cố định", desc: "Đánh giá điện, nước, internet, bảo hiểm để giảm chi phí", cta: "Xem gợi ý" },
-  { title: "Thử thách tiết kiệm 7 ngày", desc: "Giữ thói quen tốt với checklist hằng ngày", cta: "Bắt đầu thử thách" },
-];
-
 const howSteps = [
   { title: "Ghi giao dịch 10 giây", desc: "Thêm thu/chi nhanh với gợi ý danh mục và nguồn tiền", icon: "📝" },
   { title: "Theo dõi ngân sách & cảnh báo", desc: "Tự động trừ ngân sách, cảnh báo khi sắp vượt ngưỡng", icon: "📊" },
@@ -99,17 +97,13 @@ const aiSamples = [
   { q: "Ngân sách 50/30/20 là gì?", a: "50% thiết yếu, 30% mong muốn, 20% tiết kiệm/đầu tư. FintrAI có thể chia và cảnh báo khi bạn vượt từng phần." },
 ];
 
-const stays = [
-  { title: "Quỹ khẩn cấp", price: "Đã đạt 35.000.000đ", rating: "Tiến độ 70%", tag: "On-track", image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=900&q=80" },
-  { title: "Trả nợ thẻ tín dụng", price: "Còn 12.500.000đ", rating: "Tiến độ 40%", tag: "Cần đẩy nhanh", image: "https://images.unsplash.com/photo-1542728000-268c0f9bddc7?auto=format&fit=crop&w=900&q=80" },
-  { title: "Tiết kiệm du lịch", price: "Đã đạt 18.000.000đ", rating: "Tiến độ 60%", tag: "Ổn định", image: "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=900&q=80" },
-  { title: "Đầu tư định kỳ", price: "Góp 5.000.000đ/tháng", rating: "Kỷ luật tốt", tag: "Thói quen", image: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=900&q=80" },
-  { title: "Mua xe máy", price: "Đã đạt 12.000.000đ", rating: "Tiến độ 50%", tag: "Kiên trì", image: "https://images.unsplash.com/photo-1502877828070-33b167ad6860?auto=format&fit=crop&w=900&q=80" },
-  { title: "Quỹ học tập", price: "Đã đạt 20.000.000đ", rating: "Tiến độ 65%", tag: "Ổn định", image: "https://images.unsplash.com/photo-1491841651911-c44c30c34548?auto=format&fit=crop&w=900&q=80" },
-  { title: "Cưới hỏi", price: "Đã đạt 45.000.000đ", rating: "Tiến độ 55%", tag: "Đang tích luỹ", image: "https://images.unsplash.com/photo-1499084732479-de2c02d45fcc?auto=format&fit=crop&w=900&q=80" },
-  { title: "Quỹ sức khỏe", price: "Đã đạt 25.000.000đ", rating: "Tiến độ 75%", tag: "On-track", image: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=900&q=80" },
+const demoGoals = [
+  { title: "Quỹ khẩn cấp", currentAmount: 35000000, targetAmount: 50000000, status: "On-track" },
+  { title: "Trả nợ thẻ tín dụng", currentAmount: 7300000, targetAmount: 14000000, status: "At risk" },
+  { title: "Tiết kiệm du lịch", currentAmount: 12000000, targetAmount: 20000000, status: "On-track" },
+  { title: "Đầu tư định kỳ", currentAmount: 18000000, targetAmount: 30000000, status: "On-track" },
+  { title: "Mua xe máy", currentAmount: 8000000, targetAmount: 16000000, status: "At risk" },
 ];
-const stayMarquee = [...stays, ...stays];
 
 const footerLinks = [
   { title: "Hỗ trợ", items: ["Trung tâm trợ giúp", "Câu hỏi thường gặp", "Liên hệ đội ngũ Fintr4ck"] },
@@ -127,19 +121,31 @@ export default function HomePage() {
   const [socialCounts, setSocialCounts] = useState(socialMetrics.map(() => 0));
   const [activeNav, setActiveNav] = useState("popular");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [tipsModalOpen, setTipsModalOpen] = useState(false);
+  const [lockedTooltip, setLockedTooltip] = useState("");
   const [demoAmount, setDemoAmount] = useState("");
   const [demoCategory, setDemoCategory] = useState(demoCategories[0]);
   const [demoNote, setDemoNote] = useState("");
-  const [demoEntry, setDemoEntry] = useState(null);
+  const [demoTransactions, setDemoTransactions] = useState([]);
   const [aiResponse, setAiResponse] = useState(aiSamples[0].a);
+  const [demoToast, setDemoToast] = useState(null);
+  const toastTimerRef = useRef(null);
+  const [goals, setGoals] = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+  const goalsRef = useRef(null);
+  const goalAutoTimer = useRef(null);
+  const goalRaf = useRef(null);
+  const [isGoalHover, setIsGoalHover] = useState(false);
   const popularRef = useRef(null);
-  const dealsRef = useRef(null);
   const staysRef = useRef(null);
-  const sectionRefs = { popular: popularRef, deals: dealsRef, stays: staysRef };
+  const sectionRefs = useMemo(() => ({ popular: popularRef, stays: staysRef }), []);
   const cashflowSeries = [32, 40, 36, 48, 62, 58, 72, 68, 86, 94, 102, 96];
   const budgetSeries = [52, 48, 54, 60, 58, 66, 70, 68, 72, 76, 80, 78];
   const lastCash = cashflowSeries[cashflowSeries.length - 1];
   const lastBudget = budgetSeries[budgetSeries.length - 1];
+  const { isMobile, isTablet } = useBreakpoint();
+  const styles = useMemo(() => createStyles({ isMobile, isTablet }), [isMobile, isTablet]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const netTarget = 12.4;
@@ -193,6 +199,30 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    setGoalsLoading(true);
+    if (isLoggedIn) {
+      const mock = [
+        { title: "Quỹ khẩn cấp", currentAmount: 36000000, targetAmount: 50000000, status: "On-track" },
+        { title: "Trả nợ thẻ tín dụng", currentAmount: 8200000, targetAmount: 14000000, status: "At risk" },
+        { title: "Tiết kiệm du lịch", currentAmount: 15000000, targetAmount: 22000000, status: "On-track" },
+        { title: "Đầu tư định kỳ", currentAmount: 24000000, targetAmount: 32000000, status: "On-track" },
+        { title: "Mua xe máy", currentAmount: 9000000, targetAmount: 16000000, status: "At risk" },
+      ];
+      setGoals(mock);
+      setGoalsLoading(false);
+    } else {
+      setGoals(demoGoals);
+      setGoalsLoading(false);
+    }
+  }, [isLoggedIn]);
+
+  const goalsFlow = useMemo(() => {
+    if (goalsLoading) return [];
+    const visible = goals.slice(0, 5);
+    return [...visible, ...visible];
+  }, [goals, goalsLoading]);
+
+  useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -210,7 +240,7 @@ export default function HomePage() {
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [sectionRefs]);
 
   const handleScrollTo = (key) => {
     const target = sectionRefs[key]?.current;
@@ -219,21 +249,154 @@ export default function HomePage() {
     }
   };
 
-  const handleDemoSubmit = (e) => {
+  const handleDemoSubmit = async (e) => {
     e.preventDefault();
     if (!demoAmount) return;
+    const amount = Number(demoAmount.replace(/\D/g, "")) || Number(demoAmount);
+    if (!amount || Number.isNaN(amount)) return;
     const entry = {
-      amount: Number(demoAmount.replace(/\D/g, "")) || Number(demoAmount),
+      id: Date.now(),
+      amount,
       category: demoCategory,
-      note: demoNote,
-      type: "CHI TIÊU",
+      note: demoNote || "Giao dịch demo",
+      type: "expense",
+      date: new Date().toISOString(),
+      isDemo: !isLoggedIn,
+      pending: isLoggedIn,
     };
-    setDemoEntry(entry);
+
+    if (!isLoggedIn) {
+      setDemoTransactions((prev) => [entry, ...prev].slice(0, 5));
+      setDemoToast({ message: "Đã thêm vào demo. Đăng ký để lưu thật!", tone: "info" });
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setDemoToast(null), 2200);
+      setDemoAmount("");
+      setDemoNote("");
+      return;
+    }
+
+    // Logged-in: optimistic update then call API
+    setDemoTransactions((prev) => [entry, ...prev].slice(0, 5));
+    setDemoAmount("");
+    setDemoNote("");
+    try {
+      const res = await apiCreateTransaction({
+        amount,
+        type: "expense",
+        note: entry.note,
+        categoryName: entry.category,
+        source: "home_demo",
+      });
+      const normalized = res.transaction || res || {};
+      const committed = {
+        ...entry,
+        ...normalized,
+        id: normalized.id || normalized._id || entry.id,
+        pending: false,
+        isDemo: false,
+      };
+      setDemoTransactions((prev) => [committed, ...prev.filter((t) => t.id !== entry.id)].slice(0, 5));
+      setDemoToast({ message: "Đã thêm giao dịch!", tone: "success" });
+    } catch (err) {
+      console.error(err);
+      setDemoTransactions((prev) => prev.filter((t) => t.id !== entry.id));
+      setDemoToast({ message: "Không thể lưu. Vui lòng thử lại.", tone: "danger" });
+    } finally {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setDemoToast(null), 2400);
+    }
   };
 
   const handleAiSample = (ans) => {
     setAiResponse(ans);
   };
+
+  const handleHoverIn = (e) => {
+    if (!e?.currentTarget) return;
+    e.currentTarget.style.transform = "translateY(-1px)";
+    e.currentTarget.style.boxShadow = "0 16px 32px rgba(14,165,233,0.3)";
+  };
+
+  const handleHoverOut = (e, baseShadow = palette.shadow) => {
+    if (!e?.currentTarget) return;
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.boxShadow = baseShadow;
+  };
+
+  const handleCategoryClick = (category) => {
+    if (isLoggedIn) {
+      navigate(`/app/categories?group=${encodeURIComponent(category)}`);
+    } else {
+      setLockedTooltip("Đăng ký để tạo danh mục");
+      setTimeout(() => setLockedTooltip(""), 1600);
+    }
+  };
+
+  const scrollGoals = (dir = 1) => {
+    const el = goalsRef.current;
+    if (!el) return;
+    const view = el.clientWidth || 320;
+    const delta = view * 0.9 * dir;
+    const max = el.scrollWidth - view;
+    const target = el.scrollLeft + delta;
+    if (target >= max && dir > 0) {
+      el.scrollTo({ left: 0, behavior: "smooth" });
+    } else if (target <= 0 && dir < 0) {
+      el.scrollTo({ left: max, behavior: "smooth" });
+    } else {
+      el.scrollBy({ left: delta, behavior: "smooth" });
+    }
+  };
+
+  const handleGoalClick = () => {
+    if (isLoggedIn) {
+      navigate("/app/templates");
+    } else {
+      navigate("/register");
+    }
+  };
+
+  useEffect(() => {
+    if (goalAutoTimer.current) clearInterval(goalAutoTimer.current);
+    if (goalRaf.current) cancelAnimationFrame(goalRaf.current);
+    if (goalsLoading || goals.length <= 1) return undefined;
+
+    const el = goalsRef.current;
+    if (!el) return undefined;
+
+    const speed = 0.28; // px per ms for smooth flow
+    let last = performance.now();
+
+    const tick = (now) => {
+      if (!el) return;
+      const dt = now - last;
+      last = now;
+      if (!isGoalHover) {
+        const max = el.scrollWidth - el.clientWidth;
+        if (max > 0) {
+          const next = el.scrollLeft + dt * speed;
+          if (next >= max) {
+            el.scrollLeft = 0;
+          } else {
+            el.scrollLeft = next;
+          }
+        }
+      }
+      goalRaf.current = requestAnimationFrame(tick);
+    };
+
+    goalRaf.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (goalRaf.current) cancelAnimationFrame(goalRaf.current);
+    };
+  }, [goalsLoading, goals.length, isGoalHover]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   return (
     <PageTransition style={styles.page}>
@@ -247,14 +410,13 @@ export default function HomePage() {
           </div>
         </div>
         <nav style={styles.nav}>
-          {[
-            { key: "popular", label: "Phổ biến" },
-            { key: "deals", label: "Gợi ý" },
-            { key: "stays", label: "Mục tiêu" },
-          ].map((item) => (
-            <button
-              key={item.key}
-              onClick={() => handleScrollTo(item.key)}
+            {[
+              { key: "popular", label: "Phổ biến" },
+              { key: "stays", label: "Mục tiêu" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleScrollTo(item.key)}
               style={{ ...styles.navItem, ...(activeNav === item.key ? styles.navItemActive : {}) }}
             >
               {item.label}
@@ -263,7 +425,7 @@ export default function HomePage() {
         </nav>
         <div style={styles.actions}>
           <Link to="/login" style={styles.linkGhost}>Đăng nhập</Link>
-          <Link to={isLoggedIn ? "/dashboard" : "/register"} style={styles.linkPrimary}>
+          <Link to={isLoggedIn ? "/app/dashboard" : "/register"} style={styles.linkPrimary}>
             {isLoggedIn ? "Vào Dashboard" : "Dùng thử miễn phí"}
           </Link>
         </div>
@@ -276,10 +438,24 @@ export default function HomePage() {
             <h1 style={styles.heroTitle}>Kiểm soát dòng tiền, tiết kiệm chi tiêu và đạt mục tiêu rõ ràng.</h1>
             <p style={styles.heroDesc}>Ghi giao dịch, xem báo cáo tức thì và nhận gợi ý hành động thông minh cho ví tiền của bạn.</p>
             <div style={styles.heroButtons}>
-              <Link to={isLoggedIn ? "/dashboard" : "/register"} style={styles.ctaPrimary}>
+              <Link
+                to={isLoggedIn ? "/app/dashboard" : "/register"}
+                style={styles.ctaPrimary}
+                onMouseEnter={handleHoverIn}
+                onFocus={handleHoverIn}
+                onBlur={(e) => handleHoverOut(e, styles.ctaPrimary.boxShadow)}
+              >
                 {isLoggedIn ? "Vào Dashboard" : "Khám phá ngay"}
               </Link>
-              <Link to="/login" style={styles.ctaGhost}>Xem demo</Link>
+              <Link
+                to={isLoggedIn ? "/app/dashboard" : "/demo"}
+                style={styles.ctaGhost}
+                onMouseEnter={handleHoverIn}
+                onFocus={handleHoverIn}
+                onBlur={(e) => handleHoverOut(e, styles.ctaGhost.boxShadow || palette.shadow)}
+              >
+                Xem demo
+              </Link>
             </div>
           </div>
           <div style={styles.heroCard}>
@@ -398,23 +574,66 @@ export default function HomePage() {
                 </label>
                 <button type="submit" style={styles.demoButton}>Thử ngay</button>
               </form>
-              {demoEntry && (
-                <div style={styles.demoPreview}>
-                  <div style={styles.demoBadge}>Ghi mới</div>
-                  <div style={styles.demoPreviewText}>
-                    Bạn vừa ghi {demoEntry.type} {demoEntry.amount.toLocaleString("vi-VN")}đ – {demoEntry.category.toLowerCase()}
-                  </div>
-                  <div style={styles.demoMini}>
-                    <div>
-                      <div style={styles.demoMiniLabel}>Số dư demo</div>
-                      <div style={styles.demoMiniValue}>{(5200000 - demoEntry.amount).toLocaleString("vi-VN")}đ</div>
-                    </div>
-                    <div style={styles.demoMiniBar}>
-                      <div style={{ ...styles.demoMiniFill, width: `${Math.max(12, 100 - demoEntry.amount / 80000)}%` }} />
-                    </div>
-                  </div>
+              {demoToast && (
+                <div style={{ ...styles.demoPreview, borderColor: demoToast.tone === "danger" ? "rgba(248,113,113,0.4)" : styles.demoPreview.border }}>
+                  <div style={styles.demoBadge}>{demoToast.tone === "success" ? "Thành công" : "Thông báo"}</div>
+                  <div style={styles.demoPreviewText}>{demoToast.message}</div>
                 </div>
               )}
+              <div style={styles.demoSummary}>
+                <div style={styles.summaryItem}>
+                  <div style={styles.summaryLabel}>Tổng chi demo</div>
+                  <div style={styles.summaryValue}>
+                    {demoTransactions
+                      .filter((t) => t.type !== "income")
+                      .reduce((sum, t) => sum + (t.amount || 0), 0)
+                      .toLocaleString("vi-VN")}
+                    đ
+                  </div>
+                </div>
+                <div style={styles.summaryItem}>
+                  <div style={styles.summaryLabel}>Tổng thu demo</div>
+                  <div style={styles.summaryValue}>
+                    {demoTransactions
+                      .filter((t) => t.type === "income")
+                      .reduce((sum, t) => sum + (t.amount || 0), 0)
+                      .toLocaleString("vi-VN")}
+                    đ
+                  </div>
+                </div>
+                <div style={styles.summaryItem}>
+                  <div style={styles.summaryLabel}>Delta</div>
+                  <div style={styles.summaryValue}>
+                    {(() => {
+                      const income = demoTransactions.filter((t) => t.type === "income").reduce((s, t) => s + (t.amount || 0), 0);
+                      const expense = demoTransactions.filter((t) => t.type !== "income").reduce((s, t) => s + (t.amount || 0), 0);
+                      const delta = income - expense;
+                      return `${delta >= 0 ? "+" : ""}${delta.toLocaleString("vi-VN")}đ`;
+                    })()}
+                  </div>
+                </div>
+              </div>
+              <div style={styles.demoList}>
+                {demoTransactions.length === 0 ? (
+                  <div style={styles.demoEmpty}>Chưa có giao dịch demo. Hãy thử thêm một khoản!</div>
+                ) : (
+                  demoTransactions.map((tx) => {
+                    const isIncome = tx.type === "income";
+                    return (
+                      <div key={tx.id} style={styles.demoRow}>
+                        <div>
+                          <div style={styles.demoRowTitle}>{tx.note || "Giao dịch"}</div>
+                          <div style={styles.demoRowMeta}>{tx.category} • {new Date(tx.date || Date.now()).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</div>
+                        </div>
+                        <div style={{ ...styles.demoRowAmount, color: isIncome ? "#22c55e" : "#fca5a5" }}>
+                          {isIncome ? "+" : "-"}{tx.amount.toLocaleString("vi-VN")}đ
+                          {tx.pending && <span style={styles.pendingDot}>...</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             <div style={styles.aiCard}>
@@ -485,6 +704,7 @@ export default function HomePage() {
 
     <section id="popular" ref={sectionRefs.popular} data-section="popular" style={styles.section}>
       <h2 style={styles.sectionTitle}>Các danh mục được dùng nhiều</h2>
+          {!isLoggedIn && lockedTooltip && <div style={styles.lockedHint}>{lockedTooltip}</div>}
           <div style={styles.tabs}>
             {tabSections.map((tab, idx) => (
               <button
@@ -501,51 +721,107 @@ export default function HomePage() {
             {tabSections[activeTab].columns.map((col, i) => (
               <div key={i} style={styles.cityCol}>
                 {col.map((city) => (
-                  <div key={city} style={styles.cityItem} className="city-item">{city}</div>
+                  <div
+                    key={city}
+                    style={styles.cityItem}
+                    className="city-item"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleCategoryClick(city)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCategoryClick(city)}
+                    title={isLoggedIn ? undefined : "Đăng ký để tạo danh mục"}
+                  >
+                    {city}
+                  </div>
                 ))}
               </div>
             ))}
           </div>
         </section>
 
-        <section id="deals" ref={sectionRefs.deals} data-section="deals" style={styles.section}>
-          <h2 style={styles.sectionTitle}>Gợi ý tiết kiệm</h2>
-          <div style={styles.dealsGrid}>
-            {deals.map((deal) => (
-              <div key={deal.title} style={styles.dealCard}>
-                <div>
-                  <div style={styles.dealTitle}>{deal.title}</div>
-                  <div style={styles.dealDesc}>{deal.desc}</div>
-                </div>
-                <button style={styles.dealBtn}>{deal.cta}</button>
-              </div>
-            ))}
-          </div>
-        </section>
 
         <section id="stays" ref={sectionRefs.stays} data-section="stays" style={styles.section}>
           <h2 style={styles.sectionTitle}>Mục tiêu tài chính nổi bật</h2>
-          <div style={styles.stayWrap}>
-            <div style={styles.stayTrack}>
-              {stayMarquee.map((stay, idx) => (
-                <div key={`${stay.title}-${idx}`} style={styles.stayCard}>
-                    <div
-                      style={{
-                        ...styles.stayThumb,
-                        backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.12) 10%, rgba(11,16,33,0.72) 70%), url(${stay.image})`,
-                      }}
-                    />
-                    <div style={styles.stayBody}>
-                      <div style={styles.stayTitle}>{stay.title}</div>
-                      <div style={styles.stayTag}>{stay.tag} • {stay.rating}</div>
-                      <div style={styles.stayPrice}>{stay.price}</div>
-                    </div>
-                  </div>
-              ))}
+          <div style={styles.goalBar}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {!isLoggedIn && <span style={styles.goalBadge}>Ví dụ mục tiêu</span>}
+              {isLoggedIn && <span style={styles.goalBadge}>Dữ liệu của bạn</span>}
+              {!isLoggedIn && (
+                <span style={styles.goalHint}>Đăng ký để theo dõi mục tiêu thật.</span>
+              )}
             </div>
+            <div style={styles.goalControls}>
+              {!isLoggedIn && (
+                <Link to="/register" style={styles.goalCTA}>Tạo mục tiêu của bạn</Link>
+              )}
+              <div style={styles.arrowGroup}>
+                <button style={styles.arrowBtn} onClick={() => scrollGoals(-1)} aria-label="Cuộn trái">←</button>
+                <button style={styles.arrowBtn} onClick={() => scrollGoals(1)} aria-label="Cuộn phải">→</button>
+              </div>
+            </div>
+          </div>
+          <div
+            style={styles.goalScroller}
+            ref={goalsRef}
+            onMouseEnter={() => setIsGoalHover(true)}
+            onMouseLeave={() => setIsGoalHover(false)}
+          >
+            {goalsLoading ? (
+              <div style={styles.goalLoading}>Đang tải mục tiêu...</div>
+            ) : goalsFlow.length === 0 ? (
+              <div style={styles.goalLoading}>Chưa có mục tiêu nào. Hãy tạo mục tiêu mới!</div>
+            ) : (
+              goalsFlow.map((goal, idx) => {
+                const percent = Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100));
+                const statusTone =
+                  goal.status === "Completed" ? "success" : goal.status === "At risk" ? "danger" : "info";
+                const targetLabel = `${goal.currentAmount.toLocaleString("vi-VN")}đ / ${goal.targetAmount.toLocaleString("vi-VN")}đ`;
+                const statusLabel = goal.status === "Completed" ? "Hoàn thành" : goal.status === "At risk" ? "Cần chú ý" : "On-track";
+                return (
+                  <button
+                    key={`${goal.title}-${idx}`}
+                    style={styles.goalCard}
+                    onClick={() => handleGoalClick()}
+                    onMouseEnter={handleHoverIn}
+                    onMouseLeave={(e) => handleHoverOut(e, styles.goalCard.boxShadow)}
+                    onFocus={handleHoverIn}
+                    onBlur={(e) => handleHoverOut(e, styles.goalCard.boxShadow)}
+                  >
+                    <div style={styles.goalTop}>
+                      <div style={styles.goalTitle}>{goal.title}</div>
+                      <span style={{ ...styles.goalStatus, ...(statusTone === "danger" ? styles.goalStatusDanger : statusTone === "success" ? styles.goalStatusSuccess : styles.goalStatusInfo) }}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                    <div style={styles.goalTarget}>{targetLabel}</div>
+                    <div style={styles.goalProgress}>
+                      <div style={{ ...styles.goalProgressFill, width: `${percent}%`, background: percent >= 100 ? "linear-gradient(135deg, #22c55e, #0ea5e9)" : statusTone === "danger" ? "linear-gradient(135deg, #f97316, #fb7185)" : "linear-gradient(135deg, #7c3aed, #0ea5e9)" }} />
+                    </div>
+                    <div style={styles.goalMeta}>
+                      <span>Tiến độ</span>
+                      <strong>{percent}%</strong>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </section>
       </main>
+
+      <ModalDialog
+        open={tipsModalOpen}
+        title="3 gợi ý tiết kiệm nhanh"
+        message={
+          "• Chuyển 10% lương vào quỹ ngay khi nhận\n" +
+          "• Đặt trần 500k/ngày cho ăn uống, tự động chuyển dư sang Tiết kiệm\n" +
+          "• Huỷ 2 subscription ít dùng để tiết kiệm mỗi tháng"
+        }
+        confirmText="Đăng ký để xem đầy đủ"
+        cancelText="Đóng"
+        onConfirm={() => navigate("/register")}
+        onCancel={() => setTipsModalOpen(false)}
+      />
 
       <footer style={styles.footer}>
         <div style={styles.footerLinks}>
@@ -567,7 +843,7 @@ export default function HomePage() {
   );
 }
 
-const styles = {
+const baseStyles = {
   page: {
     background: palette.bg,
     minHeight: "100vh",
@@ -750,20 +1026,45 @@ const styles = {
     fontSize: 12,
   },
   demoPreviewText: { fontWeight: 700, color: palette.text },
-  demoMini: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  demoMiniLabel: { color: palette.muted, fontSize: 12 },
-  demoMiniValue: { fontWeight: 800, color: palette.text },
-  demoMiniBar: {
-    flex: 1,
-    height: 10,
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.08)",
+  demoSummary: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+    gap: 10,
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 12,
     border: `1px solid ${palette.border}`,
-    overflow: "hidden",
+    background: "rgba(255,255,255,0.04)",
   },
-  demoMiniFill: {
-    height: "100%",
-    background: "linear-gradient(135deg, #22c55e, #0ea5e9)",
+  summaryItem: { display: "grid", gap: 4 },
+  summaryLabel: { color: palette.muted, fontSize: 12 },
+  summaryValue: { fontWeight: 800, color: palette.text },
+  demoList: {
+    marginTop: 10,
+    display: "grid",
+    gap: 10,
+  },
+  demoRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: 10,
+    borderRadius: 12,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.03)",
+  },
+  demoRowTitle: { fontWeight: 700, color: palette.text },
+  demoRowMeta: { color: palette.muted, fontSize: 12 },
+  demoRowAmount: { fontWeight: 800, fontSize: 15, display: "flex", alignItems: "center", gap: 6 },
+  pendingDot: { color: palette.muted, fontSize: 12 },
+  demoEmpty: {
+    padding: 12,
+    borderRadius: 12,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.02)",
+    color: palette.muted,
+    textAlign: "center",
   },
   aiCard: {
     borderRadius: 16,
@@ -900,6 +1201,38 @@ const styles = {
   heroTitle: { fontSize: 36, margin: 0, lineHeight: 1.2 },
   heroDesc: { margin: 0, color: palette.muted, lineHeight: 1.6 },
   heroButtons: { display: "flex", gap: 10 },
+  ctaPrimary: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "12px 16px",
+    borderRadius: 12,
+    background: "linear-gradient(135deg, #7c3aed, #0ea5e9)",
+    color: "#0b1021",
+    fontWeight: 800,
+    textDecoration: "none",
+    boxShadow: palette.shadow,
+    minWidth: 0,
+    transition: "transform 0.15s ease, box-shadow 0.25s ease, opacity 0.15s ease",
+    outline: "2px solid transparent",
+    outlineOffset: 2,
+  },
+  ctaGhost: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "12px 16px",
+    borderRadius: 12,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.04)",
+    color: palette.text,
+    fontWeight: 700,
+    textDecoration: "none",
+    minWidth: 0,
+    transition: "transform 0.15s ease, box-shadow 0.25s ease, opacity 0.15s ease",
+    outline: "2px solid transparent",
+    outlineOffset: 2,
+  },
   heroCard: {
     background: "linear-gradient(135deg, rgba(124,58,237,0.22), rgba(14,165,233,0.18))",
     borderRadius: 24,
@@ -993,6 +1326,7 @@ const styles = {
     border: `1px solid ${palette.border}`,
     boxShadow: "0 10px 24px rgba(0,0,0,0.25)",
     transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
+    cursor: "pointer",
   },
   dealsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 },
   dealCard: {
@@ -1005,6 +1339,7 @@ const styles = {
     justifyContent: "space-between",
     gap: 12,
     alignItems: "center",
+    pointerEvents: "auto",
   },
   dealTitle: { fontWeight: 800, fontSize: 16 },
   dealDesc: { color: palette.muted, marginTop: 4 },
@@ -1016,40 +1351,104 @@ const styles = {
     color: "#f8fafc",
     fontWeight: 800,
     cursor: "pointer",
+    boxShadow: palette.shadow,
+    transition: "transform 0.15s ease, box-shadow 0.25s ease, opacity 0.15s ease",
   },
-  stayGrid: {
+  goalBar: {
     display: "flex",
-    gap: 14,
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 10,
   },
-  stayWrap: {
-    position: "relative",
-    overflow: "hidden",
-    paddingBottom: 4,
-  },
-  stayTrack: {
-    display: "flex",
-    gap: 14,
-    width: "max-content",
-    animation: "marquee 28s linear infinite",
-  },
-  stayCard: {
-    borderRadius: 18,
+  goalBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 12px",
+    borderRadius: 12,
     border: `1px solid ${palette.border}`,
-    background: "rgba(255,255,255,0.05)",
-    boxShadow: "0 12px 32px rgba(0,0,0,0.4)",
-    overflow: "hidden",
+    background: "rgba(255,255,255,0.04)",
+    color: palette.text,
+    fontWeight: 800,
+    fontSize: 13,
+  },
+  goalHint: { color: palette.muted, fontSize: 13 },
+  goalControls: { display: "flex", alignItems: "center", gap: 10 },
+  goalCTA: {
+    padding: "10px 14px",
+    borderRadius: 12,
+    background: "linear-gradient(135deg, #7c3aed, #0ea5e9)",
+    color: "#0b1021",
+    fontWeight: 800,
+    textDecoration: "none",
+    boxShadow: palette.shadow,
+  },
+  arrowGroup: { display: "flex", gap: 8 },
+  arrowBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.06)",
+    color: palette.text,
+    cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.2)",
+  },
+  goalScroller: {
+    display: "grid",
+    gridAutoFlow: "column",
+    gridAutoColumns: "minmax(280px, 340px)",
+    gap: 12,
+    overflowX: "auto",
+    scrollSnapType: "x mandatory",
+    paddingBottom: 6,
+    scrollbarWidth: "thin",
+  },
+  goalCard: {
+    borderRadius: 16,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.04)",
+    padding: 14,
+    boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+    textAlign: "left",
+    scrollSnapAlign: "start",
     minWidth: 240,
+    cursor: "pointer",
+    transition: "transform 0.15s ease, box-shadow 0.25s ease",
   },
-  stayThumb: {
-    height: 140,
-    background: "linear-gradient(135deg, #2563eb, #22c1c3)",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
+  goalTop: { display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" },
+  goalTitle: { fontWeight: 800, fontSize: 15 },
+  goalStatus: {
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: `1px solid ${palette.border}`,
+    fontWeight: 700,
+    fontSize: 12,
   },
-  stayBody: { padding: 12, display: "grid", gap: 6 },
-  stayTitle: { fontWeight: 800, fontSize: 15, color: palette.text },
-  stayTag: { color: palette.muted, fontSize: 13 },
-  stayPrice: { fontWeight: 700, color: palette.text },
+  goalStatusDanger: { color: "#fca5a5", borderColor: "rgba(248,113,113,0.35)", background: "rgba(248,113,113,0.12)" },
+  goalStatusSuccess: { color: "#4ade80", borderColor: "rgba(74,222,128,0.35)", background: "rgba(74,222,128,0.12)" },
+  goalStatusInfo: { color: "#c4b5fd", borderColor: "rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.12)" },
+  goalTarget: { color: palette.muted, fontSize: 13, marginTop: 8 },
+  goalProgress: {
+    marginTop: 10,
+    width: "100%",
+    height: 10,
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.06)",
+    border: `1px solid ${palette.border}`,
+    overflow: "hidden",
+  },
+  goalProgressFill: { height: "100%", borderRadius: 999, boxShadow: "0 10px 24px rgba(14,165,233,0.3)" },
+  goalMeta: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, color: palette.muted, fontSize: 13 },
+  goalLoading: {
+    padding: 16,
+    borderRadius: 14,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.03)",
+    color: palette.muted,
+    boxShadow: "0 10px 24px rgba(0,0,0,0.25)",
+  },
   footer: { background: "rgba(15,23,42,0.9)", marginTop: 30, padding: "32px 20px", borderTop: `1px solid ${palette.border}` },
   footerLinks: {
     maxWidth: 1280,
@@ -1079,7 +1478,119 @@ const styles = {
     background: "linear-gradient(135deg, #22c55e, #0ea5e9)",
     boxShadow: "0 0 0 8px rgba(14,165,233,0.14)",
   },
+  lockedHint: {
+    marginBottom: 8,
+    color: palette.muted,
+    fontSize: 13,
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: `1px solid ${palette.border}`,
+    background: "rgba(255,255,255,0.03)",
+  },
 };
+
+function createStyles({ isMobile, isTablet }) {
+  return {
+    ...baseStyles,
+    header: {
+      ...baseStyles.header,
+      padding: isMobile ? "16px 14px" : "24px 20px",
+      gap: isMobile ? 12 : 20,
+      flexWrap: isTablet ? "wrap" : "nowrap",
+      alignItems: isTablet ? "flex-start" : "center",
+      rowGap: isTablet ? 12 : 0,
+    },
+    nav: {
+      ...baseStyles.nav,
+      gap: isMobile ? 10 : 16,
+      flex: isTablet ? "1 1 100%" : "0 0 auto",
+      order: isTablet ? 3 : 0,
+      overflowX: isTablet ? "auto" : "visible",
+      paddingBottom: isTablet ? 6 : 0,
+    },
+    actions: {
+      ...baseStyles.actions,
+      gap: isMobile ? 8 : 10,
+      flexWrap: isTablet ? "wrap" : "nowrap",
+      width: isTablet ? "100%" : "auto",
+      justifyContent: isTablet ? "flex-start" : "flex-end",
+      order: isTablet ? 2 : 0,
+    },
+    linkGhost: {
+      ...baseStyles.linkGhost,
+      width: isMobile ? "100%" : "auto",
+      textAlign: "center",
+    },
+    linkPrimary: {
+      ...baseStyles.linkPrimary,
+      width: isMobile ? "100%" : "auto",
+      textAlign: "center",
+    },
+    main: {
+      ...baseStyles.main,
+      padding: isMobile ? "0 14px 48px" : isTablet ? "0 18px 56px" : "0 20px 60px",
+      gap: isMobile ? 24 : baseStyles.main.gap,
+    },
+    hero: {
+      ...baseStyles.hero,
+      gridTemplateColumns: isTablet ? "1fr" : "1.2fr 1fr",
+      padding: isMobile ? 18 : 28,
+      gap: isMobile ? 16 : 24,
+    },
+    heroTitle: {
+      ...baseStyles.heroTitle,
+      fontSize: isMobile ? 26 : isTablet ? 32 : 36,
+    },
+    heroDesc: {
+      ...baseStyles.heroDesc,
+      fontSize: isMobile ? 14 : 16,
+    },
+    heroButtons: {
+      ...baseStyles.heroButtons,
+      flexWrap: "wrap",
+      flexDirection: isMobile ? "column" : "row",
+      width: "100%",
+      alignItems: isMobile ? "stretch" : "center",
+    },
+    ctaPrimary: {
+      ...baseStyles.ctaPrimary,
+      width: isMobile ? "100%" : "auto",
+    },
+    ctaGhost: {
+      ...baseStyles.ctaGhost,
+      width: isMobile ? "100%" : "auto",
+    },
+    heroCard: {
+      ...baseStyles.heroCard,
+      borderRadius: isMobile ? 18 : 24,
+      minWidth: 0,
+    },
+    heroStats: {
+      ...baseStyles.heroStats,
+      gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+    },
+    chartShell: {
+      ...baseStyles.chartShell,
+      height: isMobile ? 200 : 220,
+    },
+    chartMeta: {
+      ...baseStyles.chartMeta,
+      position: isMobile ? "static" : "absolute",
+      marginTop: isMobile ? 10 : 0,
+      alignSelf: isMobile ? "stretch" : undefined,
+      width: isMobile ? "100%" : "auto",
+    },
+    sectionTitle: {
+      ...baseStyles.sectionTitle,
+      fontSize: isMobile ? 20 : 24,
+    },
+    footerBottom: {
+      ...baseStyles.footerBottom,
+      flexDirection: isMobile ? "column" : "row",
+      alignItems: isMobile ? "flex-start" : "center",
+    },
+  };
+}
 
 // Keyframes for marquee animation
 const marqueeStyle = `
