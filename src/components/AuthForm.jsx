@@ -1,5 +1,5 @@
 // src/components/AuthForm.jsx
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import PageTransition from "./PageTransition";
 import Button from "./ui/Button";
@@ -13,11 +13,6 @@ export default function AuthForm({ type, onSubmit, submitting, error }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const avatarLetter = useMemo(() => {
-    const source = (isLogin ? email : name) || "F";
-    return source.trim().charAt(0).toUpperCase();
-  }, [isLogin, email, name]);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -40,10 +35,6 @@ export default function AuthForm({ type, onSubmit, submitting, error }) {
               <div style={styles.logoText}>Fintr4ck</div>
               <div style={styles.logoHint}>Personal finance, made confident</div>
             </div>
-          </div>
-
-          <div style={styles.avatar}>
-            <span>{avatarLetter}</span>
           </div>
 
           <h1 style={styles.title}>
@@ -188,19 +179,6 @@ const styles = {
   },
   logoText: { fontWeight: 800, letterSpacing: -0.2, color: "var(--text-strong)" },
   logoHint: { color: "var(--text-muted)", fontSize: 12 },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    display: "grid",
-    placeItems: "center",
-    fontSize: 22,
-    fontWeight: 800,
-    color: "#e2e8f0",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-  },
   title: {
     margin: "4px 0 0",
     fontSize: 28,

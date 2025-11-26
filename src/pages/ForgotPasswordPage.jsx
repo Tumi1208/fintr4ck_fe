@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApiHelpers } from "../api/auth";
 import Button from "../components/ui/Button";
@@ -18,11 +18,6 @@ export default function ForgotPasswordPage() {
   const navigate = useNavigate();
 
   const { API_BASE } = authApiHelpers;
-
-  const avatarLetter = useMemo(() => {
-    const source = email || "F";
-    return source.trim().charAt(0).toUpperCase();
-  }, [email]);
 
   async function handleReset(e) {
     e.preventDefault();
@@ -62,10 +57,6 @@ export default function ForgotPasswordPage() {
               <div style={styles.logoText}>Fintr4ck</div>
               <div style={styles.logoHint}>Personal finance, made confident</div>
             </div>
-          </div>
-
-          <div style={styles.avatar}>
-            <span>{avatarLetter}</span>
           </div>
 
           <h1 style={styles.title}>Khôi phục mật khẩu</h1>
@@ -182,19 +173,6 @@ const styles = {
   },
   logoText: { fontWeight: 800, letterSpacing: -0.2, color: "var(--text-strong)" },
   logoHint: { color: "var(--text-muted)", fontSize: 12 },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    display: "grid",
-    placeItems: "center",
-    fontSize: 22,
-    fontWeight: 800,
-    color: "#e2e8f0",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-  },
   title: { fontSize: 28, fontWeight: 800, color: "var(--text-strong)", margin: "4px 0 0" },
   subtitle: { fontSize: 14, color: "var(--text-muted)", marginBottom: 12 },
   error: {
